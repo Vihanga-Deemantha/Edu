@@ -1,0 +1,56 @@
+import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+
+import authRoutes from "./modules/auth/auth.routes.js";
+import verificationRoutes from "./modules/verification/verification.routes.js";
+import errorHandler from "./middleware/errorHandler.js";
+
+const app = express();
+
+// 1. Security headers
+app.use(helmet());
+
+// 2. CORS — locked to the frontend origin, with credentials for cookies
+//    Using a function for `origin` defers the env-var read to request time,
+//    avoiding the ESM import-hoisting problem where static imports run before
+//    dotenv.config() populates process.env.
+app.use(
+  cors({
+    origin: (requestOrigin, callback) => {
+      const allowed = process.env.CORS_ORIGIN;
+      if (!requestOrigin || requestOrigin === allowed) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin '${requestOrigin}' not allowed`));
+      }
+    },
+    credentials: true, // allows cookies to be sent cross-origin
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// 3. Body parsing
+app.use(express.json());
+
+// 4. Cookie parsing (needed to read the httpOnly refresh token cookie)
+app.use(cookieParser());
+
+// 5. Route mounting
+app.use("/api/auth", authRoutes);
+app.use("/api/verification", verificationRoutes);
+
+// 6. 404 handler for unmatched routes
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: { message: "Route not found", code: "NOT_FOUND" },
+  });
+});
+
+// 7. Centralized error handler — MUST be last
+app.use(errorHandler);
+
+export default app;
