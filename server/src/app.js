@@ -5,6 +5,8 @@ import cookieParser from "cookie-parser";
 
 import authRoutes from "./modules/auth/auth.routes.js";
 import verificationRoutes from "./modules/verification/verification.routes.js";
+import profileRoutes from "./modules/profiles/profiles.routes.js";
+import listingRoutes from "./modules/listings/listings.routes.js";
 import errorHandler from "./middleware/errorHandler.js";
 
 const app = express();
@@ -47,6 +49,8 @@ app.use(cookieParser());
 // 5. Route mounting
 app.use("/api/auth", authRoutes);
 app.use("/api/verification", verificationRoutes);
+app.use("/api/profiles", profileRoutes);
+app.use("/api/listings", listingRoutes);
 
 // 6. 404 handler for unmatched routes
 app.use((req, res) => {
