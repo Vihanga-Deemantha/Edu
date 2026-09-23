@@ -70,7 +70,12 @@ app.use("/api/profiles", profileRoutes);
 Indexes:
 ```js
 teacherProfileSchema.index({ location: "2dsphere" });
-teacherProfileSchema.index({ subjects: 1, grades: 1 });
+// Two single-field indexes, NOT a compound { subjects: 1, grades: 1 } —
+// MongoDB rejects a compound index across two array fields at write time
+// ("cannot index parallel arrays"). Mongo can still satisfy an AND query on
+// both via index intersection.
+teacherProfileSchema.index({ subjects: 1 });
+teacherProfileSchema.index({ grades: 1 });
 ```
 
 ### `StudentProfile.js`
@@ -195,6 +200,16 @@ Protected — **never public**, matches the product-level rule that a student "w
 
 ---
 
-## 10. Definition of Done
+## 10. Implementation Notes (found while building this phase, relevant again in Phase 4's `Listing.location`)
+
+Three genuine Mongoose/MongoDB gotchas surfaced by the test suite, worth knowing before Phase 4 hits the same shapes again:
+
+- **An optional GeoJSON field needs its own sub-schema with `default: undefined` on both the array field and the parent path.** A plain nested object literal (`location: { type: {...}, coordinates: { type: [Number] } }`) gets an implicit `coordinates: []` default from Mongoose even when `location` is never touched by the caller — producing an invalid partial GeoJSON value on every single insert, which crashes the 2dsphere index unconditionally, not just when a location is actually set. Fix: a real `mongoose.Schema` sub-schema (`{ _id: false }`) with `default: undefined` on the array field, and `default: undefined` again on the parent path. See `TeacherProfile.js`'s `pointSchema`.
+- **MongoDB rejects a compound index across two array fields** (`{ subjects: 1, grades: 1 }` when both are `[String]`) with "cannot index parallel arrays" — this only surfaces at write time, not at schema-definition time. Use two single-field indexes instead; Mongo can still intersect them for an AND query.
+- **`findOneAndUpdate` with `upsert: true` and `runValidators: true` validates required fields against the update operators, not the matched document** — it has to assume the operation might end up creating a fresh document, since it validates before knowing whether the query will match. A partial `{ $set: { bio: "..." } }` against an existing profile was being rejected as missing `subjects`/`grades`/etc., fields it never touched. Fix: check existence first (already needed anyway, for the create-vs-update branch) and only pass `upsert: true` on the genuine creation path.
+
+---
+
+## 11. Definition of Done
 
 Phase 2 is complete when all 11 checklist items in §9 pass, `TeacherProfile` has a working `2dsphere` index (confirm with `db.teacherprofiles.getIndexes()`), and you can explain — without looking at the code — why `verificationStatus` is copied onto `TeacherProfile` at all instead of having every consumer join against `TeacherVerification` directly. (Short answer to check yourself against: `TeacherVerification` holds NIC numbers and police-clearance scans — nothing that reads public profile data should ever have a query path anywhere near that collection, even accidentally. The mirror field is the access-control boundary, not just a performance shortcut.)

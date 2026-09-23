@@ -15,22 +15,72 @@ This document sequences everything after auth (Phase 0/1, built) through the ful
 | 3 | Teacher & Student Profiles — Frontend | 2 | Core |
 | 4 | Listings — Backend | 2 | Core |
 | 5 | Listings — Frontend | 4 | Core |
-| 6 | Public Browse, Search & Discovery | 4, 5 | Core |
-| 7 | Interaction Event Logging & Analytics Foundation | 6 | Infra |
-| **8** | **AI/ML v1 — Content-Based Recommendations** | 6, 7 | **AI/ML** |
-| 9 | Notifications Module | 0 (can start anytime after auth) | Infra |
-| 10 | Interest & Contact Request Flow | 6, 9 | Core |
-| 11 | Ratings & Reviews | 10 | Core |
-| **12** | **AI/ML v2 — Collaborative Filtering & Ranking** | 7, 8, 10, 11 | **AI/ML** |
-| 13 | In-App Chat | 10 | Enhancement |
-| 14 | Admin Backend | 2, 4, 10, 11 | Core |
+| 6B / 6F | Public Browse, Search & Discovery | 4 / 6B | Core |
+| 7 | Interaction Event Logging & Analytics Foundation | 6B | Infra |
+| **8** | **AI/ML v1 — Content-Based Recommendations** | 6B, 7 | **AI/ML** |
+| 9 / 9F | Notifications | 0 / 9 | Infra |
+| 10B / 10F | Interest & Contact Request Flow | 6B, 9 / 10B, 9F | Core |
+| 11B / 11F | Ratings & Reviews | 10B / 11B | Core |
+| **12** | **AI/ML v2 — Collaborative Filtering & Ranking** | 7, 8, 10B, 11B | **AI/ML** |
+| 13B / 13F | In-App Chat | 10B / 13B | Enhancement |
+| 14 | Admin Backend | 2, 4, 10B, 11B | Core |
 | 15 | Admin Frontend & Analytics Dashboard | 14, 7 | Core |
-| **16** | **AI/ML v3 — Semantic Search & Assistant Layer** | 6, 12 | **AI/ML** |
-| 17 | Trial-Class Booking & Scheduling | 10 | Stretch |
-| 18 | Payments (PayHere/WebXPay) | 17 | Stretch |
-| 19 | Multi-Language (Sinhala/Tamil/English) | 6 | Stretch |
+| **16** | **AI/ML v3 — Semantic Search & Assistant Layer** | 6B, 12 | **AI/ML** |
+| 17B / 17F | Trial-Class Booking & Scheduling | 10B / 17B | Stretch |
+| 18B / 18F | Payments (PayHere/WebXPay) | 17B / 18B | Stretch |
+| 19B / 19F | Multi-Language (Sinhala/Tamil/English) | 6B / 19B | Stretch |
+
+(See the Build Order section right below for the actual backend-first build sequence — this table is the reference/dependency map, not the execution order.)
 
 The three AI/ML phases are bolded because they're the direct answer to "add ML/AI for relevant suggestions" — each is scoped to what the *preceding* phase's data actually supports, so none of them require data you don't have yet.
+
+---
+
+## Build Order — Backend First
+
+Every backend phase ships before any frontend phase starts. This works cleanly here because almost everything in this roadmap is backend-native to begin with: every AI/ML phase depends on *data existing* (an endpoint, a collection, an event log), not on a UI existing to produce it through — Phase 8's recommendations need listings in the database, not a browse page anyone's actually used. The phases originally written as one combined backend+frontend phase (6, 10, 11, 13, 17, 18, 19) are split below into a `B` (backend) and `F` (frontend) half, keeping the same anchor number so nothing gets renumbered relative to what's already referenced elsewhere.
+
+**Backend track — build in this order:**
+
+| Order | Phase | Status |
+|---|---|---|
+| 1 | Phase 2 — Profiles Backend | ✅ Done |
+| 2 | Phase 4 — Listings Backend | ✅ Done |
+| 3 | Phase 6B — Browse & Search Backend | ✅ Done |
+| 4 | Phase 7 — Event Logging & Analytics Foundation | ✅ Done |
+| 5 | Phase 8 — AI/ML v1: Content-Based Recommendations | Up next |
+| 6 | Phase 9 — Notifications Backend | |
+| 7 | Phase 10B — Interest & Contact Request Backend | |
+| 8 | Phase 11B — Ratings & Reviews Backend | |
+| 9 | Phase 12 — AI/ML v2: Collaborative Filtering & Ranking | |
+| 10 | Phase 13B — In-App Chat Backend | |
+| 11 | Phase 14 — Admin Backend | |
+| 12 | Phase 16 — AI/ML v3: Semantic Search & Assistant | |
+| 13 | Phase 17B — Booking Backend | |
+| 14 | Phase 18B — Payments Backend | |
+| 15 | Phase 19B — Multi-language content fields | |
+
+**Frontend track — build after every backend phase above is done:**
+
+| Order | Phase | Depends on |
+|---|---|---|
+| 1 | Phase 3 — Profiles Frontend | 2 |
+| 2 | Phase 5 — Listings Frontend | 4 |
+| 3 | Phase 6F — Browse & Search Frontend | 6B |
+| 4 | Phase 9F — In-App Notification UI | 9 |
+| 5 | Phase 10F — Interest & Contact Frontend | 10B, 9F |
+| 6 | Phase 11F — Ratings & Reviews Frontend | 11B |
+| 7 | Phase 13F — Chat Frontend | 13B |
+| 8 | Phase 15 — Admin Frontend & Analytics Dashboard | 14, 7 |
+| 9 | Phase 17F — Booking Frontend | 17B |
+| 10 | Phase 18F — Payments Frontend | 18B |
+| 11 | Phase 19F — Multi-Language UI (i18next) | 19B |
+
+**Four backend phases have a real external dependency, not just code** — worth a quick check-in when I actually reach them rather than guessing unilaterally:
+- **Phase 9** assumes Redis + BullMQ. If that's not available yet, a DB-polled job queue is a fine substitute until it is.
+- **Phase 12** introduces a separate Python service alongside the Node monolith — worth confirming that split is wanted now rather than keeping ML in Node longer.
+- **Phase 16** needs an embeddings API (or a self-hosted model) and specifically MongoDB Atlas Vector Search, not just any Mongo deployment.
+- **Phase 18** needs real PayHere/WebXPay merchant credentials — there's nothing to integrate against without them.
 
 ---
 
@@ -143,19 +193,21 @@ Listing {
 
 ## Phase 6 — Public Browse, Search & Discovery
 
-**Goal**: the page that makes this a marketplace instead of a form-filling exercise — browsing teacher ads with filters, and geospatial "near me" search.
+**Goal**: the page that makes this a marketplace instead of a form-filling exercise — browsing teacher ads with filters, and geospatial "near me" search. Split below into 6B (backend track) and 6F (frontend track, built later).
 
-**Backend**:
+### Phase 6B — Backend
 - `GET /api/listings/browse` (public) — query params: `subject, grade, medium, curriculum, minPrice, maxPrice, lat, lng, radiusKm, sort (rating|price|distance|newest)`
 - Geospatial: `$geoNear` (requires a `2dsphere` index on `Listing.location`, aggregation pipeline since `$geoNear` must be the first stage — plan the query builder around that constraint from the start rather than retrofitting)
 - Text filters: compound index on `{ type: 1, status: 1, subject: 1, grade: 1 }` covers the common filter combination; add MongoDB text index on `subject description` for free-text search until Phase 16's semantic search replaces it
 - Guest (unauthenticated) requests get the same browse results as logged-in students — per the product spec, guests can browse but not act. Don't gate browse behind auth; gate the *interest* action (Phase 10) instead.
 
-**Frontend**:
+**Definition of done (6B)**: a guest (no token) gets the same filtered/geo-sorted results a logged-in student would, verified via Postman.
+
+### Phase 6F — Frontend (built in the frontend track)
 - `BrowsePage` — filter sidebar/bar + pinned-card grid, matches the "Featured/sample subjects" placeholder from the landing page (Phase 1 upgrade §B1.4) — this is where that placeholder becomes real data, as already flagged in that spec
 - Empty/no-results state, loading skeletons (this is the first page where real pagination and network latency matter — this is also the point where I'd actually introduce TanStack Query instead of hand-rolled `useEffect` fetching, since filters changing rapidly is exactly the caching/race-condition problem it solves)
 
-**Definition of done**: a guest can browse and filter teacher ads including a "near me" sort, with results matching what a logged-in student sees.
+**Definition of done (6F)**: a guest can browse and filter teacher ads including a "near me" sort, in the browser.
 
 ---
 
@@ -205,9 +257,9 @@ Event {
 
 ---
 
-## Phase 9 — Notifications Module
+## Phase 9 — Notifications (9 backend, 9F frontend)
 
-**Goal**: event-driven alerts, needed before Phase 10 can have an accept/decline flow worth building (an interest request nobody gets notified about is a dead feature).
+**Goal**: event-driven alerts. The backend (queue + `Notification` model + endpoints) is genuinely useful to have before Phase 10B, since Phase 10B's accept/decline handlers need something to call into — the in-app display (9F) is deferred to the frontend track without blocking anything backend-side.
 
 **Architecture**: Redis + BullMQ, per the overview doc's own suggested stack — a worker process consumes jobs queued by other modules (`interest.accepted`, `review.posted`, etc.) and fans out to in-app notification + email (reuse the Phase 0 `email.service.js` transport, don't build a second one).
 
@@ -228,9 +280,9 @@ Notification {
 
 ---
 
-## Phase 10 — Interest & Contact Request Flow
+## Phase 10 — Interest & Contact Request Flow (10B backend, 10F frontend)
 
-**Goal**: the core marketplace transaction — this is the phase your existing upgrade specs already name, and it's the reason Phase 9 had to come first.
+**Goal**: the core marketplace transaction — this is the phase your existing upgrade specs already name. 10B is the API described below; 10F (the "Express Interest" button, sent/received lists, accept/decline UI) is built later in the frontend track, after 9F exists to actually surface the resulting notifications.
 
 **Data model** (matches overview doc):
 ```
@@ -256,9 +308,9 @@ InterestRequest {
 
 ---
 
-## Phase 11 — Ratings & Reviews
+## Phase 11 — Ratings & Reviews (11B backend, 11F frontend)
 
-**Goal**: the trust mechanism the overview doc correctly calls "the hardest part of any marketplace."
+**Goal**: the trust mechanism the overview doc correctly calls "the hardest part of any marketplace." 11B is the API below; 11F (the star-rating form gated to completed requests, review lists on the public profile) is built later in the frontend track.
 
 **Data model**:
 ```
@@ -293,15 +345,19 @@ Review {
 
 ---
 
-## Phase 13 — In-App Chat
+## Phase 13 — In-App Chat (13B backend, 13F frontend)
 
 **Goal**: replace the "reveal contact details" outcome of Phase 10 with a proper in-app conversation, keeping contact info off-platform entirely (better privacy posture, and it's where the child-safety mediation story gets stronger — a parent can review a chat thread).
 
+### Phase 13B — Backend
 - WebSockets (Socket.io) now justified by this feature specifically
 - `Conversation`/`Message` models keyed off an accepted `InterestRequest`
 - Child-linked conversations: the parent is always a participant, the child (if it ever gets its own limited session — out of scope here, matches the existing "child never logs in independently" decision) is not a direct party
 
-**Definition of done**: two accepted-interest parties can exchange messages in real time; contact-detail revelation from Phase 10 can be scoped down to "you're now connected" instead of raw phone/email, if you choose to fully replace it.
+**Definition of done (13B)**: two accepted-interest parties can exchange messages over a socket connection, verified with a WebSocket test client — no UI needed yet.
+
+### Phase 13F — Frontend (built in the frontend track)
+Chat UI wired to the socket connection above; contact-detail revelation from Phase 10 can be scoped down to "you're now connected" instead of raw phone/email, if you choose to fully replace it.
 
 ---
 
@@ -345,17 +401,17 @@ Review {
 
 ---
 
-## Phase 17 — Trial-Class Booking & Scheduling (stretch)
+## Phase 17 — Trial-Class Booking & Scheduling (stretch; 17B backend, 17F frontend)
 
-Calendar-based trial session booking between an accepted `InterestRequest` pair — a `Booking` model with a time slot, teacher-defined availability windows, and conflict checking. Straightforward CRUD + calendar UI; no new architectural decisions beyond what Phases 4-10 already established.
+Calendar-based trial session booking between an accepted `InterestRequest` pair — a `Booking` model with a time slot, teacher-defined availability windows, and conflict checking. 17B is the CRUD API + conflict-checking logic; 17F is the calendar UI. No new architectural decisions beyond what Phases 4-10 already established.
 
-## Phase 18 — Payments (stretch)
+## Phase 18 — Payments (stretch; 18B backend, 18F frontend)
 
-PayHere or WebXPay sandbox integration for a trial-class deposit, gated behind Phase 17. Payments are explicitly out of scope until this point — don't let Phase 8/12's recommendation work get entangled with a payment model that doesn't exist yet.
+PayHere or WebXPay sandbox integration for a trial-class deposit, gated behind Phase 17. Payments are explicitly out of scope until this point — don't let Phase 8/12's recommendation work get entangled with a payment model that doesn't exist yet. 18B is the gateway integration + webhook handling; 18F is the checkout UI. **Needs real merchant credentials before 18B can be built against anything real** — flag this when we get here rather than stubbing indefinitely.
 
-## Phase 19 — Multi-Language (Sinhala/Tamil/English) (stretch)
+## Phase 19 — Multi-Language (Sinhala/Tamil/English) (stretch; mostly 19F, small 19B)
 
-The Phase 1 upgrade already set the font stack up for this (`Noto Sans Sinhala`/`Noto Sans Tamil` fallbacks). This phase is UI string externalization (i18next) + translated content fields on `Listing`/`TeacherProfile` where relevant. Independent of the ML phases — semantic search (Phase 16) embeddings would need to be regenerated per-language if this ships after Phase 16, so consider sequencing this before Phase 16 if multi-language is a near-term priority rather than a true stretch goal.
+The Phase 1 upgrade already set the font stack up for this (`Noto Sans Sinhala`/`Noto Sans Tamil` fallbacks). 19B is small — translated content fields on `Listing`/`TeacherProfile` (e.g. `description_si`, `description_ta`) so the data model doesn't need retrofitting later. 19F is the bulk of the work: UI string externalization (i18next) + a language switcher. Independent of the ML phases — semantic search (Phase 16) embeddings would need to be regenerated per-language if this ships after Phase 16, so consider sequencing 19B before Phase 16 if multi-language is a near-term priority rather than a true stretch goal.
 
 ---
 

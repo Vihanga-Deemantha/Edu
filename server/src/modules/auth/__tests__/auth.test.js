@@ -2,47 +2,9 @@ import { describe, it, expect } from "vitest";
 import request from "supertest";
 import app from "../../../app.js";
 import { __testOtpCapture } from "../../../services/otp.service.js";
+import { uniquePhone, baseUser, registerAndVerify, login } from "../../../test/helpers.js";
 
-const uniquePhone = () => `+94${Math.floor(100000000 + Math.random() * 899999999)}`;
-
-const baseTeacher = () => ({
-  name: "Kasun Perera",
-  email: `kasun.${Date.now()}.${Math.random().toString(36).slice(2)}@example.com`,
-  phone: uniquePhone(),
-  password: "SuperSecret8",
-  role: "teacher",
-});
-
-/** Registers a user and drives them through both OTP channels to a verified, logged-in state. */
-const registerAndVerify = async (overrides = {}) => {
-  const payload = { ...baseTeacher(), ...overrides };
-  const registerRes = await request(app).post("/api/auth/register").send(payload);
-  if (registerRes.status !== 201) {
-    throw new Error(`registerAndVerify: register failed (${registerRes.status}): ${JSON.stringify(registerRes.body)}`);
-  }
-  const { userId } = registerRes.body.data;
-
-  const emailCode = __testOtpCapture[`${userId}:email:signup`];
-  const phoneCode = __testOtpCapture[`${userId}:phone:signup`];
-
-  await request(app).post("/api/auth/verify-otp").send({ userId, channel: "email", code: emailCode });
-  const finalRes = await request(app)
-    .post("/api/auth/verify-otp")
-    .send({ userId, channel: "phone", code: phoneCode });
-
-  return { payload, userId, verifyRes: finalRes };
-};
-
-/** Logs in and returns both the response and its Set-Cookie header, ready to replay on a later request. */
-const login = async (payload) => {
-  const res = await request(app)
-    .post("/api/auth/login")
-    .send({ email: payload.email, password: payload.password });
-  if (res.status !== 200) {
-    throw new Error(`login helper: login failed (${res.status}): ${JSON.stringify(res.body)}`);
-  }
-  return { res, cookie: res.headers["set-cookie"] };
-};
+const baseTeacher = () => baseUser("teacher");
 
 describe("POST /api/auth/register", () => {
   it("creates an unverified account and sends both OTPs, no tokens yet", async () => {
