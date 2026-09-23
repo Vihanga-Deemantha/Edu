@@ -8,10 +8,12 @@ import {
   resendOtpValidation,
   googleAuthValidation,
   completeProfileValidation,
+  forgotPasswordValidation,
+  resetPasswordValidation,
 } from "./auth.validation.js";
 import authenticate from "../../middleware/authenticate.js";
 import authorize from "../../middleware/authorize.js";
-import { authRateLimiter, otpSendLimiter } from "../../middleware/rateLimiter.js";
+import { authRateLimiter, otpSendLimiter, otpVerifyLimiter } from "../../middleware/rateLimiter.js";
 
 const router = Router();
 
@@ -23,14 +25,18 @@ router.post("/register", authRateLimiter, registerValidation, authController.reg
 // Login — rate limited; blocked until both channels verified
 router.post("/login", authRateLimiter, loginValidation, authController.login);
 
-// OTP verification (signup flow)
-router.post("/verify-otp", verifyOtpValidation, authController.verifyOtp);
+// OTP verification (signup flow) — rate limited to slow scripted guessing
+router.post("/verify-otp", otpVerifyLimiter, verifyOtpValidation, authController.verifyOtp);
 
 // OTP resend — OTP send rate limiter (3/15min per IP)
 router.post("/resend-otp", otpSendLimiter, resendOtpValidation, authController.resendOtp);
 
 // Token refresh — reads from httpOnly cookie
 router.post("/refresh", authController.refresh);
+
+// Forgot/reset password — reuses the same OTP infrastructure (purpose: password_reset)
+router.post("/forgot-password", otpSendLimiter, forgotPasswordValidation, authController.forgotPassword);
+router.post("/reset-password", otpVerifyLimiter, resetPasswordValidation, authController.resetPassword);
 
 // ─── Google Sign-In (feature-flagged) ───────────────────────────────────────
 // Route is only registered when GOOGLE_SIGNIN_ENABLED=true in .env

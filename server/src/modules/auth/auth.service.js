@@ -1,6 +1,8 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import User from "../../models/User.js";
+import RefreshToken from "../../models/RefreshToken.js";
 import ApiError from "../../utils/ApiError.js";
 import {
   generateAccessToken,
@@ -9,23 +11,34 @@ import {
 } from "../../utils/generateTokens.js";
 import { createAndSendOtp, verifyOtp } from "../../services/otp.service.js";
 
+const MAX_PLACEHOLDER_RETRIES = 3;
 
 /**
- * Issue and store a fresh token pair for a user.
- * Extracted here because multiple flows (verify-otp, google, complete-profile)
- * all need to issue tokens once verification is complete.
+ * Issue and store a fresh token pair for a user, as a new session.
+ * Each call creates a NEW RefreshToken document rather than overwriting a
+ * single stored hash — this is what lets someone stay logged in on their
+ * phone and laptop at the same time. Extracted here because multiple flows
+ * (login, verify-otp, google, complete-profile refresh) all need to issue
+ * tokens once verification is complete.
  */
-const issueTokens = async (user) => {
+const issueTokens = async (user, userAgent = null) => {
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
-  user.refreshTokenHash = hashToken(refreshToken);
-  await user.save();
+  const decoded = jwt.decode(refreshToken);
+
+  await RefreshToken.create({
+    userId: user._id,
+    tokenHash: hashToken(refreshToken),
+    userAgent,
+    expiresAt: new Date(decoded.exp * 1000),
+  });
+
   return { accessToken, refreshToken };
 };
 
 /**
  * Shapes the public user object returned in responses.
- * Never includes passwordHash, refreshTokenHash, or adminNotes.
+ * Never includes passwordHash or adminNotes.
  */
 const publicUser = (user) => ({
   id: user._id,
@@ -36,7 +49,26 @@ const publicUser = (user) => ({
   emailVerified: user.emailVerified,
   phoneVerified: user.phoneVerified,
   authProvider: user.authProvider,
+  profileComplete: user.profileComplete,
   createdAt: user.createdAt,
+});
+
+/**
+ * Generates a random Sri Lankan-shaped phone number for accounts that don't
+ * have a real one yet (new Google sign-ups before they complete their
+ * profile). Fully random rather than a recognizable fixed prefix — an
+ * earlier version used a fixed "+94700" prefix as a signal for "this is a
+ * placeholder," but 070 is a real, commonly-issued Sri Lankan mobile prefix,
+ * so a genuine user's real number could collide with that signal. Whether a
+ * profile is complete is tracked explicitly via User.profileComplete now, so
+ * this value no longer needs to be recognizable — just valid-shaped and
+ * unlikely to collide (collision is still handled by the retry wrapper below).
+ */
+const generatePlaceholderPhone = () => `+94${crypto.randomInt(100000000, 999999999)}`;
+
+const generateChildPlaceholderContact = () => ({
+  email: `child.${crypto.randomBytes(8).toString("hex")}@nologin.local`,
+  phone: generatePlaceholderPhone(),
 });
 
 // ─── REGISTRATION ────────────────────────────────────────────────────────────
@@ -88,12 +120,12 @@ export const registerUser = async ({ name, email, phone, password, role }) => {
  * Verify one OTP code. If both channels are now verified, issue tokens (auto-login).
  * Returns { user, fullyVerified, accessToken?, refreshToken? }
  */
-export const verifyOtpAndMaybeLogin = async ({ userId, channel, purpose, code }) => {
+export const verifyOtpAndMaybeLogin = async ({ userId, channel, purpose, code, userAgent }) => {
   const updatedUser = await verifyOtp(userId, channel, purpose, code);
 
   if (updatedUser.emailVerified && updatedUser.phoneVerified) {
     // Both channels verified — auto-login
-    const { accessToken, refreshToken } = await issueTokens(updatedUser);
+    const { accessToken, refreshToken } = await issueTokens(updatedUser, userAgent);
     return { user: updatedUser, fullyVerified: true, accessToken, refreshToken };
   }
 
@@ -117,8 +149,8 @@ export const resendOtp = async ({ userId, channel, purpose }) => {
  * Log in with email + password.
  * Requires both emailVerified AND phoneVerified — returns specific 403 code if not.
  */
-export const loginUser = async ({ email, password }) => {
-  const user = await User.findOne({ email }).select("+passwordHash +refreshTokenHash");
+export const loginUser = async ({ email, password, userAgent }) => {
+  const user = await User.findOne({ email }).select("+passwordHash");
 
   // Generic error — don't leak whether email exists or password is wrong
   const INVALID_CREDS = new ApiError(401, "Invalid credentials", "INVALID_CREDENTIALS");
@@ -136,16 +168,20 @@ export const loginUser = async ({ email, password }) => {
     throw new ApiError(403, "Account has been suspended", "ACCOUNT_SUSPENDED");
   }
 
-  // Verification gate — both channels must be verified
+  // Verification gate — both channels must be verified.
+  // Carries userId in the error's data so the frontend can jump straight to
+  // /verify-otp for THIS account — previously this response gave no way for
+  // the client to know who to verify, which was a dead end in the UI.
   if (!user.emailVerified || !user.phoneVerified) {
     throw new ApiError(
       403,
       "Account not fully verified. Please complete email and phone verification.",
-      "ACCOUNT_NOT_VERIFIED"
+      "ACCOUNT_NOT_VERIFIED",
+      { userId: user._id }
     );
   }
 
-  const { accessToken, refreshToken } = await issueTokens(user);
+  const { accessToken, refreshToken } = await issueTokens(user, userAgent);
   return { user, accessToken, refreshToken };
 };
 
@@ -153,9 +189,25 @@ export const loginUser = async ({ email, password }) => {
 
 /**
  * Refresh access + refresh tokens (rotation on every use).
- * Detects reuse of rotated-out tokens (theft signal).
+ * Detects reuse of rotated-out tokens (theft signal) by checking against the
+ * RefreshToken collection instead of a single stored hash — this also means
+ * a user's other active sessions (other devices) are untouched by a normal
+ * refresh on this one.
+ *
+ * Two different "no active session" cases have to be told apart here:
+ *   - the token was already rotated away by an earlier refresh, and this is
+ *     a REPLAY of it → real reuse/theft signal → revoke every session
+ *   - there's simply no record of this token at all (never issued, or its
+ *     session was ended by an ordinary logout) → NOT a theft signal, just an
+ *     invalid session; an earlier version of this function treated both
+ *     cases identically, so logging out on one device silently logged out
+ *     every other device the next time each tried to refresh
+ * A rotated token is therefore marked `used` and kept (not deleted) so a
+ * later lookup can distinguish "rotated, now being replayed" from "was
+ * logged out" — logout still hard-deletes its session document outright,
+ * since a logged-out token being reused later carries no reuse signal.
  */
-export const refreshTokens = async (rawRefreshToken) => {
+export const refreshTokens = async (rawRefreshToken, userAgent) => {
   if (!rawRefreshToken) {
     throw new ApiError(401, "No refresh token", "NO_REFRESH_TOKEN");
   }
@@ -167,36 +219,73 @@ export const refreshTokens = async (rawRefreshToken) => {
     throw new ApiError(401, "Invalid or expired refresh token", "INVALID_REFRESH_TOKEN");
   }
 
-  const user = await User.findById(decoded.sub).select("+refreshTokenHash");
-  if (!user) {
-    throw new ApiError(401, "User not found", "USER_NOT_FOUND");
+  const incomingHash = hashToken(rawRefreshToken);
+  const stored = await RefreshToken.findOne({ tokenHash: incomingHash });
+
+  if (!stored) {
+    throw new ApiError(401, "Session not found. Please log in again.", "INVALID_REFRESH_TOKEN");
   }
 
-  const incomingHash = hashToken(rawRefreshToken);
-
-  // Mismatch = token reuse (rotation attack signal) — invalidate everything
-  if (incomingHash !== user.refreshTokenHash) {
-    user.refreshTokenHash = null;
-    await user.save();
+  if (stored.used) {
+    // This exact token was already consumed by a previous rotation —
+    // someone is replaying a token that should no longer be usable.
+    await RefreshToken.deleteMany({ userId: stored.userId });
     throw new ApiError(401, "Token reuse detected. Please log in again.", "TOKEN_REUSE");
   }
 
-  const newAccessToken = generateAccessToken(user);
-  const newRefreshToken = generateRefreshToken(user);
+  const user = await User.findById(decoded.sub);
+  if (!user) {
+    await RefreshToken.deleteOne({ _id: stored._id });
+    throw new ApiError(401, "User not found", "USER_NOT_FOUND");
+  }
 
-  user.refreshTokenHash = hashToken(newRefreshToken);
-  await user.save();
+  // Rotate: mark this session as consumed (kept around so a replay of it is
+  // recognizable, per the comment above) and issue a fresh pair in its place.
+  stored.used = true;
+  await stored.save();
+  const { accessToken, refreshToken } = await issueTokens(user, userAgent ?? stored.userAgent);
 
-  return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
+  return { user, accessToken, refreshToken };
 };
 
 // ─── LOGOUT ──────────────────────────────────────────────────────────────────
 
-export const logoutUser = async (userId) => {
-  await User.findByIdAndUpdate(userId, { refreshTokenHash: null });
+/**
+ * Logs out the CURRENT session only (the device this refresh-token cookie
+ * belongs to) — other devices the user is logged in on stay logged in.
+ */
+export const logoutUser = async (rawRefreshToken) => {
+  if (!rawRefreshToken) return;
+  await RefreshToken.deleteOne({ tokenHash: hashToken(rawRefreshToken) });
 };
 
 // ─── CHILD REGISTRATION ──────────────────────────────────────────────────────
+
+const createChildWithRetry = async ({ name, grade, parentId }, attempt = 0) => {
+  const { email, phone } = generateChildPlaceholderContact();
+  try {
+    return await User.create({
+      name,
+      role: "student",
+      // Placeholder email/phone — random, not derived from anything
+      // predictable, so concurrent sibling registrations don't collide.
+      email,
+      phone,
+      passwordHash: null,
+      loginDisabled: true,
+      parentId,
+      emailVerified: false,
+      phoneVerified: false,
+      grade: grade || null,
+      attestedAt: new Date(),
+    });
+  } catch (err) {
+    if (err.code === 11000 && attempt < MAX_PLACEHOLDER_RETRIES) {
+      return createChildWithRetry({ name, grade, parentId }, attempt + 1);
+    }
+    throw err;
+  }
+};
 
 /**
  * Register a child (student) account managed by a parent.
@@ -226,21 +315,7 @@ export const registerChild = async ({ name, grade, parentId, attestedGuardianshi
     );
   }
 
-  const ts = Date.now();
-  const child = await User.create({
-    name,
-    role: "student",
-    // Placeholder email/phone — unique via timestamp so siblings don't collide
-    email: `child.${parentId}.${ts}@nologin.local`,
-    phone: `0${String(ts).slice(-9)}`,
-    passwordHash: null,
-    loginDisabled: true,
-    parentId,
-    emailVerified: false,
-    phoneVerified: false,
-    grade: grade || null,
-    attestedAt: new Date(),
-  });
+  const child = await createChildWithRetry({ name, grade, parentId });
 
   await User.findByIdAndUpdate(parentId, {
     $push: { linkedChildIds: child._id },
@@ -251,15 +326,42 @@ export const registerChild = async ({ name, grade, parentId, attestedGuardianshi
 
 // ─── GOOGLE SIGN-IN ──────────────────────────────────────────────────────────
 
+const createGoogleUserWithRetry = async ({ name, email, sub, emailVerified }, attempt = 0) => {
+  try {
+    return await User.create({
+      name,
+      email,
+      phone: generatePlaceholderPhone(),
+      passwordHash: null,
+      authProvider: "google",
+      googleId: sub,
+      emailVerified: emailVerified || false,
+      phoneVerified: false,
+      // role is required at the schema level, so a placeholder value is
+      // stored here — but it is NOT what gates the complete-profile step.
+      // profileComplete: false is. See the User model comment on that field.
+      role: "student",
+      profileComplete: false,
+    });
+  } catch (err) {
+    if (err.code === 11000 && attempt < MAX_PLACEHOLDER_RETRIES) {
+      return createGoogleUserWithRetry({ name, email, sub, emailVerified }, attempt + 1);
+    }
+    throw err;
+  }
+};
+
 /**
  * Google Sign-In — verify idToken, find-or-create user.
  *
  * Returns one of three states:
  *   1. { user, tokens } — fully set up, tokens issued
- *   2. { user, profileIncomplete: true, reason: 'phone_unverified' } — has role, needs phone OTP
- *   3. { user, profileIncomplete: true, reason: 'no_role' } — new user, needs role + phone
+ *   2. { user, profileIncomplete: true, reason: 'profile_incomplete' } — brand-new
+ *      Google user, needs role + phone (completeProfile handles both together)
+ *   3. { user, profileIncomplete: true, reason: 'phone_unverified' } — profile is
+ *      complete (role + phone set) but the phone OTP hasn't been verified yet
  */
-export const googleAuth = async (idToken) => {
+export const googleAuth = async (idToken, userAgent) => {
   if (process.env.GOOGLE_SIGNIN_ENABLED !== "true") {
     throw new ApiError(404, "Google Sign-In is not enabled.", "GOOGLE_SIGNIN_DISABLED");
   }
@@ -280,27 +382,13 @@ export const googleAuth = async (idToken) => {
     }
     await user.save();
   } else {
-    // New user — create with Google provider, no password, no role yet
-    // role is intentionally omitted — set in completeProfile.
-    // We use a temporary placeholder for role to satisfy the required constraint
-    // until completeProfile sets the real value.
-    user = await User.create({
-      name,
-      email,
-      // Temporary phone placeholder — replaced when user completes profile
-      phone: `+94700${String(sub).slice(-6)}`,
-      passwordHash: null,
-      authProvider: "google",
-      googleId: sub,
-      emailVerified: email_verified || false,
-      phoneVerified: false,
-      role: "student", // placeholder — overwritten in completeProfile for new Google users
-    });
+    // New user — create with Google provider, no password, profile incomplete.
+    user = await createGoogleUserWithRetry({ name, email, sub, emailVerified: email_verified });
   }
 
   // Determine what the frontend should do next
-  if (!user.role) {
-    return { user, profileIncomplete: true, reason: "no_role" };
+  if (!user.profileComplete) {
+    return { user, profileIncomplete: true, reason: "profile_incomplete" };
   }
 
   if (!user.phoneVerified) {
@@ -308,19 +396,22 @@ export const googleAuth = async (idToken) => {
   }
 
   // Fully set up — issue tokens
-  const { accessToken, refreshToken } = await issueTokens(user);
+  const { accessToken, refreshToken } = await issueTokens(user, userAgent);
   return { user, profileIncomplete: false, accessToken, refreshToken };
 };
 
 /**
  * Complete profile for a Google Sign-In user who has no role or phone yet.
- * Protected route — only the owning user can call this.
+ * Protected route — only the owning user can call this. Only usable once:
+ * gated on User.profileComplete rather than guessing from the shape of the
+ * stored phone number (see the User model comment on that field for why the
+ * earlier phone-prefix approach was unsafe).
  */
 export const completeProfile = async ({ userId, role, phone }) => {
   const user = await User.findById(userId);
   if (!user) throw new ApiError(404, "User not found", "USER_NOT_FOUND");
 
-  if (user.role && user.phone && !user.phone.startsWith("+94700")) {
+  if (user.profileComplete) {
     throw new ApiError(409, "Profile already complete", "PROFILE_ALREADY_COMPLETE");
   }
 
@@ -333,12 +424,58 @@ export const completeProfile = async ({ userId, role, phone }) => {
   user.role = role;
   user.phone = phone;
   user.phoneVerified = false;
+  user.profileComplete = true;
   await user.save();
 
   // Send phone OTP
   await createAndSendOtp(userId, "phone", "signup");
 
   return user;
+};
+
+// ─── FORGOT / RESET PASSWORD ─────────────────────────────────────────────────
+
+/**
+ * Request a password-reset code. Always behaves the same whether or not the
+ * email belongs to an account (and whether that account even has a password
+ * to reset, e.g. Google-only accounts) — this is what keeps the endpoint
+ * from being usable to enumerate registered emails. It only actually sends
+ * an OTP when there's a real local-auth account behind the address.
+ */
+export const forgotPassword = async (email) => {
+  // passwordHash is select:false on the schema — without selecting it
+  // explicitly here, user.passwordHash is always undefined and this would
+  // silently skip sending a reset code for every account, including ones
+  // that genuinely have a password.
+  const user = await User.findOne({ email }).select("+passwordHash");
+  if (user && user.passwordHash) {
+    await createAndSendOtp(user._id, "email", "password_reset");
+  }
+};
+
+/**
+ * Complete a password reset: verify the emailed code, set the new password,
+ * and end every existing session (a password reset is exactly the moment you
+ * want any stolen/forgotten session on another device logged out too).
+ */
+export const resetPassword = async ({ email, code, newPassword }) => {
+  const user = await User.findOne({ email }).select("+passwordHash");
+  if (!user || !user.passwordHash) {
+    throw new ApiError(400, "Invalid or expired reset code.", "INVALID_RESET");
+  }
+
+  // Throws (400/429) on a wrong/expired/exhausted code — purpose
+  // 'password_reset' means this does NOT also flip emailVerified as a
+  // side effect, it only confirms the caller controls the inbox right now.
+  await verifyOtp(user._id, "email", "password_reset", code);
+
+  user.passwordHash = await bcrypt.hash(
+    newPassword,
+    Number(process.env.BCRYPT_SALT_ROUNDS) || 10
+  );
+  await user.save();
+
+  await RefreshToken.deleteMany({ userId: user._id });
 };
 
 // Named export for shaping public user — used by controller

@@ -95,3 +95,27 @@ export const completeProfileValidation = [
     .matches(/^(\+94|0)[0-9]{9}$/)
     .withMessage("Phone must be a valid Sri Lankan number (+94XXXXXXXXX or 0XXXXXXXXX)"),
 ];
+
+// ─── FORGOT / RESET PASSWORD ─────────────────────────────────────────────────
+
+export const forgotPasswordValidation = [
+  body("email")
+    .trim()
+    .notEmpty().withMessage("Email is required")
+    .isEmail().withMessage("Please provide a valid email"),
+];
+
+export const resetPasswordValidation = [
+  body("email")
+    .trim()
+    .notEmpty().withMessage("Email is required")
+    .isEmail().withMessage("Please provide a valid email"),
+
+  body("code")
+    .notEmpty().withMessage("code is required")
+    .matches(/^\d{6}$/).withMessage("code must be a 6-digit number"),
+
+  body("newPassword")
+    .notEmpty().withMessage("New password is required")
+    .isLength({ min: 8 }).withMessage("Password must be at least 8 characters"),
+];

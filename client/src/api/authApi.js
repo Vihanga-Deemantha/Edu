@@ -31,4 +31,11 @@ export const authApi = {
   // ── Complete profile (Google users) ──────────────────────────────────────
   completeProfile: (role, phone) =>
     axiosInstance.patch("/auth/complete-profile", { role, phone }),
+
+  // ── Forgot / reset password ──────────────────────────────────────────────
+  forgotPassword: (email) =>
+    axiosInstance.post("/auth/forgot-password", { email }),
+
+  resetPassword: (email, code, newPassword) =>
+    axiosInstance.post("/auth/reset-password", { email, code, newPassword }),
 };

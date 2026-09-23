@@ -12,15 +12,21 @@ const app = express();
 // 1. Security headers
 app.use(helmet());
 
-// 2. CORS — locked to the frontend origin, with credentials for cookies
+// 2. CORS — locked to a known set of frontend origins, with credentials for cookies.
+//    CORS_ORIGIN accepts a comma-separated list (e.g. local dev + staging +
+//    prod) — a single value still works unchanged since split(",") on a
+//    string with no comma just returns a one-element array.
 //    Using a function for `origin` defers the env-var read to request time,
 //    avoiding the ESM import-hoisting problem where static imports run before
 //    dotenv.config() populates process.env.
 app.use(
   cors({
     origin: (requestOrigin, callback) => {
-      const allowed = process.env.CORS_ORIGIN;
-      if (!requestOrigin || requestOrigin === allowed) {
+      const allowedOrigins = (process.env.CORS_ORIGIN || "")
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean);
+      if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
         callback(null, true);
       } else {
         callback(new Error(`CORS: origin '${requestOrigin}' not allowed`));

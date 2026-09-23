@@ -48,6 +48,7 @@ export const verifyOtp = async (req, res, next) => {
       channel,
       purpose: "signup",
       code,
+      userAgent: req.headers["user-agent"],
     });
 
     if (result.fullyVerified) {
@@ -100,7 +101,11 @@ export const login = async (req, res, next) => {
   try {
     validate(req);
     const { email, password } = req.body;
-    const { user, accessToken, refreshToken } = await authService.loginUser({ email, password });
+    const { user, accessToken, refreshToken } = await authService.loginUser({
+      email,
+      password,
+      userAgent: req.headers["user-agent"],
+    });
 
     setRefreshTokenCookie(res, refreshToken);
 
@@ -120,7 +125,10 @@ export const login = async (req, res, next) => {
 export const refresh = async (req, res, next) => {
   try {
     const rawRefreshToken = req.cookies?.refreshToken;
-    const { accessToken, refreshToken } = await authService.refreshTokens(rawRefreshToken);
+    const { accessToken, refreshToken } = await authService.refreshTokens(
+      rawRefreshToken,
+      req.headers["user-agent"]
+    );
 
     setRefreshTokenCookie(res, refreshToken);
 
@@ -134,9 +142,13 @@ export const refresh = async (req, res, next) => {
 };
 
 // ─── POST /api/auth/logout  (protected) ─────────────────────────────────────
+// Ends ONLY the current session (this device's refresh token) — other
+// devices the user is logged in on are untouched. authenticate still guards
+// the route so a bare cookie without a valid access token can't be used to
+// log out an arbitrary session.
 export const logout = async (req, res, next) => {
   try {
-    await authService.logoutUser(req.user.id);
+    await authService.logoutUser(req.cookies?.refreshToken);
     clearRefreshTokenCookie(res);
     res.status(204).send();
   } catch (err) {
@@ -149,7 +161,7 @@ export const getMe = async (req, res, next) => {
   try {
     const { default: User } = await import("../../models/User.js");
     const user = await User.findById(req.user.id)
-      .select("-passwordHash -refreshTokenHash")
+      .select("-passwordHash")
       .populate("linkedChildIds", "name role grade loginDisabled createdAt");
 
     if (!user) {
@@ -203,7 +215,7 @@ export const googleAuth = async (req, res, next) => {
   try {
     validate(req);
     const { idToken } = req.body;
-    const result = await authService.googleAuth(idToken);
+    const result = await authService.googleAuth(idToken, req.headers["user-agent"]);
 
     if (result.profileIncomplete) {
       return res.status(200).json({
@@ -247,6 +259,42 @@ export const completeProfile = async (req, res, next) => {
         role: user.role,
         phoneVerified: user.phoneVerified,
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── POST /api/auth/forgot-password  (public) ───────────────────────────────
+// Always returns the same generic response regardless of whether the email
+// is registered — see auth.service.js's forgotPassword for why.
+export const forgotPassword = async (req, res, next) => {
+  try {
+    validate(req);
+    const { email } = req.body;
+    await authService.forgotPassword(email);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: "If an account exists for that email, a password reset code has been sent.",
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── POST /api/auth/reset-password  (public) ────────────────────────────────
+export const resetPassword = async (req, res, next) => {
+  try {
+    validate(req);
+    const { email, code, newPassword } = req.body;
+    await authService.resetPassword({ email, code, newPassword });
+
+    res.status(200).json({
+      success: true,
+      data: { message: "Password updated. Please log in with your new password." },
     });
   } catch (err) {
     next(err);

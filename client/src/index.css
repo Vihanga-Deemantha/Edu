@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* ─── Fonts (self-hosted via @fontsource) ──────────────────────────────────── */
 @import "@fontsource/baloo-2/400.css";
 @import "@fontsource/baloo-2/600.css";
@@ -23,7 +25,7 @@
   --verified: #34B77A;
   --verified-light: #E6F6EF;
   --rating: #F5B942;
-  
+
   --white: #FFFFFF;
   --border: #E2E8F0;
   --card-bg: #FFFFFF;
@@ -32,8 +34,10 @@
   --success: #10B981;
   --success-light: #D1FAE5;
 
-  /* Typography */
-  --font-display: 'Plus Jakarta Sans', 'Noto Sans Sinhala', 'Noto Sans Tamil', system-ui, sans-serif;
+  /* Typography — Baloo 2 for headlines (rounded, friendly), Plus Jakarta Sans
+     for body/UI text. Both fall back through Sinhala/Tamil coverage ahead of
+     the multi-language phase. */
+  --font-display: 'Baloo 2', 'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif;
   --font-body: 'Plus Jakarta Sans', 'Noto Sans Sinhala', 'Noto Sans Tamil', system-ui, sans-serif;
 
   /* Shadows & Radius (Soft and rounded) */
@@ -45,6 +49,42 @@
   --radius-md: 0.75rem;
   --radius-lg: 1.25rem;
   --radius-xl: 2rem;
+}
+
+/* ─── Map design tokens into Tailwind's theme namespace ──────────────────────
+   Values are `var(--x)` references back to :root above (not copies) — every
+   inline `style={{ color: "var(--primary)" }}` across the app keeps working
+   completely unchanged, and this just ALSO makes `bg-primary`, `text-accent`,
+   `rounded-lg`, `shadow-md` etc. available as real utility classes for new
+   code, on the same tokens, from one source of truth. */
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-highlight: var(--highlight);
+  --color-verified: var(--verified);
+  --color-verified-light: var(--verified-light);
+  --color-rating: var(--rating);
+  --color-danger: var(--danger);
+  --color-danger-light: var(--danger-light);
+  --color-success: var(--success);
+  --color-success-light: var(--success-light);
+  --color-border: var(--border);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-glow: var(--shadow-glow);
 }
 
 /* ─── CSS Reset & Base Styles ──────────────────────────────────────────────── */
@@ -106,7 +146,13 @@ input, select {
   font-family: inherit;
 }
 
-/* ─── Layout Utilities ─────────────────────────────────────────────────────── */
+/* ─── Layout Utility ───────────────────────────────────────────────────────
+   Everything that used to be a hand-rolled copy of Tailwind's own utilities
+   (flex, gap-4, text-3xl, font-bold, ...) has been removed — Tailwind now
+   provides those directly, with the same values (they were copied from
+   Tailwind's scale to begin with), so no visual change. `.container` and the
+   handful of semantic color-text classes below aren't Tailwind defaults, so
+   they stay as small custom rules. */
 .container {
   width: 100%;
   max-width: 80rem; /* 1280px */
@@ -116,42 +162,6 @@ input, select {
   padding-right: 1.5rem;
 }
 
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.items-center { align-items: center; }
-.items-start { align-items: flex-start; }
-.justify-center { justify-content: center; }
-.justify-between { justify-content: space-between; }
-.gap-2 { gap: 0.5rem; }
-.gap-4 { gap: 1rem; }
-.gap-6 { gap: 1.5rem; }
-.gap-8 { gap: 2rem; }
-.w-full { width: 100%; }
-.h-full { height: 100%; }
-.relative { position: relative; }
-.absolute { position: absolute; }
-.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
-.z-10 { z-index: 10; }
-.z-20 { z-index: 20; }
-.overflow-hidden { overflow: hidden; }
-.text-center { text-align: center; }
-
-/* ─── Typography Utilities ─────────────────────────────────────────────────── */
-.text-xs { font-size: 0.75rem; line-height: 1rem; }
-.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
-.text-base { font-size: 1rem; line-height: 1.5rem; }
-.text-lg { font-size: 1.125rem; line-height: 1.75rem; }
-.text-xl { font-size: 1.25rem; line-height: 1.75rem; }
-.text-2xl { font-size: 1.5rem; line-height: 2rem; }
-.text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
-.text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
-.text-6xl { font-size: 3.75rem; line-height: 1; }
-
-.font-bold { font-weight: 700; }
-.font-semibold { font-weight: 600; }
-.font-medium { font-weight: 500; }
-
-.text-white { color: var(--white); }
 .text-main { color: var(--text-main); }
 .text-muted { color: var(--text-secondary); }
 .text-primary { color: var(--primary); }
@@ -231,6 +241,18 @@ input, select {
 .btn-sm { padding: 0.5rem 1.25rem; font-size: 0.75rem; }
 .btn-lg { padding: 0.875rem 2.25rem; font-size: 1rem; }
 
+.btn-spinner {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: var(--white);
+  animation: btn-spin 0.6s linear infinite;
+}
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Forms */
 .form-group {
   display: flex;
@@ -279,6 +301,21 @@ input, select {
   padding-right: 2.5rem;
 }
 
+.form-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.form-checkbox-row input[type="checkbox"] {
+  margin-top: 0.2rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 .input-error {
   border-color: var(--danger);
 }
@@ -298,6 +335,16 @@ input, select {
 .form-error::before {
   content: "⚠";
   font-size: 0.625rem;
+}
+
+/* Plain content cards — dashboard tiles, the child-accounts panels, etc.
+   (Previously referenced by several pages with no matching rule at all —
+   rendered completely unstyled.) Flat, no tilt, unlike .pinned-card below. */
+.friendly-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ─── Pinned Cards & Corkboard Motif (Phase 1 Signature) ──────────────────── */
@@ -361,6 +408,21 @@ input, select {
   background-color: var(--bg-secondary);
 }
 
+/* ─── Scroll Reveal ───────────────────────────────────────────────────────
+   Paired with the useScrollReveal hook in LandingPage.jsx (IntersectionObserver
+   adds `.visible`). Elements start hidden only once JS confirms it's actually
+   going to reveal them — reduced-motion users are handled explicitly below,
+   never left at opacity:0 with nothing to ever add `.visible`. */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* ─── Reduced Motion ─── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -378,6 +440,10 @@ input, select {
   .pinned-card:hover, .subject-chip:hover {
     transform: none !important;
   }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
   .hero-video-el {
     display: none !important;
   }
@@ -386,7 +452,7 @@ input, select {
   }
 }
 
-/* ─── Responsive & Custom Utility Classes ────────────────────────────────── */
+/* ─── Auth Pages ──────────────────────────────────────────────────────────── */
 .auth-container {
   min-height: 100vh;
   display: flex;
@@ -442,26 +508,6 @@ input, select {
   flex: 1;
   height: 1px;
   background-color: var(--border);
-}
-
-@media (min-width: 640px) {
-  .sm-p-8 { padding: 2rem; }
-  .sm-text-6xl { font-size: 3.75rem; line-height: 1.1; }
-  .sm-py-32 { padding-top: 8rem; padding-bottom: 8rem; }
-}
-
-@media (min-width: 768px) {
-  .md-flex-row { flex-direction: row; }
-  .md-grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .md-grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .md-items-center { align-items: center; }
-}
-
-@media (min-width: 1024px) {
-  .lg-px-8 { padding-left: 2rem; padding-right: 2rem; }
-  .lg-grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .lg-grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .lg-text-7xl { font-size: 4.5rem; line-height: 1.1; }
 }
 
 /* Background blob */

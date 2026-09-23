@@ -74,7 +74,7 @@ const LandingPage = () => {
               <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "var(--primary)" }}></span>
               Sri Lanka&apos;s education marketplace
             </p>
-            <h1 className="text-4xl sm-text-6xl font-bold tracking-tight mb-6 reveal" style={{ color: "var(--text-main)", transitionDelay: "100ms" }}>
+            <h1 className="text-4xl sm:text-6xl font-bold tracking-tight mb-6 reveal" style={{ color: "var(--text-main)", transitionDelay: "100ms" }}>
               Find the right teacher.<br />
               <span style={{ color: "var(--primary)" }}>Learn with confidence.</span>
             </h1>
@@ -110,7 +110,7 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="flex flex-col md-flex-row md-grid-cols-3 gap-8" style={{ marginTop: "4rem", display: "grid" }}>
+          <div className="flex flex-col md:flex-row md:grid-cols-3 gap-8" style={{ marginTop: "4rem", display: "grid" }}>
             {STEPS.map((step, i) => (
               <div key={step.title} className="pinned-card washi-tape reveal" style={{ transitionDelay: `${i * 80}ms` }}>
                 <div className="flex flex-col gap-3">
@@ -138,7 +138,7 @@ const LandingPage = () => {
             </h2>
           </div>
 
-          <div className="flex flex-col lg-flex-row lg-grid-cols-2 gap-12 md-items-center reveal" style={{ marginTop: "4rem", display: "grid" }}>
+          <div className="flex flex-col lg:flex-row lg:grid-cols-2 gap-12 md:items-center reveal" style={{ marginTop: "4rem", display: "grid" }}>
             
             <div className="flex flex-col gap-8">
               <div className="flex items-start gap-5">
@@ -226,7 +226,7 @@ const LandingPage = () => {
             </p>
           </div>
           <div className="flex gap-4 reveal" style={{ overflowX: "auto", paddingBottom: "1.5rem", paddingTop: "0.5rem", scrollSnapType: "x mandatory", scrollbarWidth: "none", msOverflowStyle: "none" }} role="list">
-            {SUBJECTS.map((s, i) => (
+            {SUBJECTS.map((s) => (
               <div key={s.name} className="subject-chip" role="listitem">
                 <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>{s.emoji}</div>
                 <div style={{ fontSize: "0.875rem", fontWeight: "700", color: "var(--text-main)" }}>{s.name}</div>
@@ -258,7 +258,7 @@ const LandingPage = () => {
       {/* ── FOOTER ── */}
       <footer style={{ padding: "3rem 0", backgroundColor: "var(--white)", borderTop: "1px solid var(--border)" }} aria-label="Site footer">
         <div className="container">
-          <div className="flex flex-col md-flex-row md-items-center justify-between gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-2">
               <img src="/edulink-friendly-logo.png" alt="EduLink Logo" style={{ height: "32px", width: "32px", borderRadius: "8px" }} />
               <span style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: "700", color: "var(--text-main)", letterSpacing: "-0.025em" }}>

@@ -32,7 +32,31 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+// No email/phone here on purpose — the backend never stores real contact
+// info for a child account (all communication routes through the verified
+// parent), so the form doesn't collect fields that would just be discarded.
 export const childSchema = z.object({
   name: z.string().min(1, "Child name is required"),
   grade: z.string().optional(),
+  attestedGuardianship: z.boolean().refine((val) => val === true, {
+    message: "You must confirm you are the parent or legal guardian of this child",
+  }),
 });
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Enter a valid email"),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/, "Enter the 6-digit code from your email"),
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  });
