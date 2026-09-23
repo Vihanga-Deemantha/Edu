@@ -8,6 +8,7 @@ import {
 import authenticate from "../../middleware/authenticate.js";
 import optionalAuthenticate from "../../middleware/optionalAuthenticate.js";
 import authorize from "../../middleware/authorize.js";
+import validate from "../../middleware/validate.js";
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.put(
   authenticate,
   authorize("teacher"),
   upsertTeacherProfileValidation,
+  validate,
   profilesController.upsertTeacherProfile
 );
 
@@ -33,6 +35,7 @@ router.get(
   "/teacher/:userId",
   optionalAuthenticate,
   userIdParamValidation,
+  validate,
   profilesController.getTeacherProfile
 );
 
@@ -46,6 +49,7 @@ router.put(
   authenticate,
   authorize("student", "parent"),
   upsertStudentProfileValidation,
+  validate,
   profilesController.upsertStudentProfile
 );
 
@@ -59,6 +63,7 @@ router.get(
   authenticate,
   authorize("teacher", "student", "parent"),
   userIdParamValidation,
+  validate,
   profilesController.getStudentProfile
 );
 

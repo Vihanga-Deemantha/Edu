@@ -6,15 +6,29 @@ import ApiError from "../../utils/ApiError.js";
 import { isRequesterParentOf } from "../../utils/familyAccess.js";
 
 /**
- * Query-level visibility filter for list endpoints (Phase 6B's /browse will
- * reuse this) — the general-public view: active listings, and a
- * `student_ad` only if the requester is an authenticated teacher. This is
- * deliberately the ONE place that rule is expressed as a query filter, so it
- * can't drift out of sync the way copy-pasted per-endpoint role checks would.
+ * The single predicate both visibility checks below are built from: is this
+ * listing TYPE the kind of thing the general public (not owner, not
+ * parent-of-owner, not admin) can see, given the requester's role? A
+ * `teacher_ad` always is; a `student_ad` only to an authenticated teacher.
+ * `publicVisibilityQueryFilter` (a Mongo query, for list endpoints) and
+ * `getListingById` (an imperative single-document check) used to each
+ * re-derive this rule independently — provably equivalent today, but
+ * nothing enforced that staying true, so a future change to one could
+ * silently desync from the other. Both now read from this one function.
+ */
+const isTypeVisibleToRole = (type, role) => {
+  if (type === "teacher_ad") return true;
+  return role === "teacher";
+};
+
+/**
+ * Query-level visibility filter for list endpoints (Phase 6B's /browse uses
+ * this) — the general-public view: active listings, and a `student_ad` only
+ * if the requester is an authenticated teacher.
  */
 export const publicVisibilityQueryFilter = (requester) => {
   const base = { status: "active" };
-  if (requester?.role === "teacher") return base;
+  if (isTypeVisibleToRole("student_ad", requester?.role)) return base;
   return { ...base, type: "teacher_ad" };
 };
 
@@ -68,9 +82,15 @@ const resolveOwnerId = async ({ type, requesterId, requesterRole, targetUserId }
  * Copies the owner's profile location at creation time — deliberately not a
  * live read on every request, so a teacher moving house later doesn't
  * retroactively relocate an already-posted ad.
+ *
+ * Checks `!== undefined`, not truthy — `locationBodyValidator` explicitly
+ * accepts `location: null` as meaningful input ("no location, on purpose",
+ * e.g. a fully-online ad), distinct from the field being omitted entirely.
+ * A truthy check treated both the same and silently overwrote an explicit
+ * null with the owner's profile location, against the caller's stated intent.
  */
 const denormalizeLocation = async (type, ownerId, providedLocation) => {
-  if (providedLocation) return providedLocation;
+  if (providedLocation !== undefined) return providedLocation;
   const ProfileModel = type === "teacher_ad" ? TeacherProfile : StudentProfile;
   const profile = await ProfileModel.findOne({ userId: ownerId });
   return profile?.location || undefined;
@@ -123,7 +143,7 @@ export const getListingById = async (listingId, requester) => {
     throw new ApiError(404, "Listing not found", "LISTING_NOT_FOUND");
   }
 
-  if (listing.type === "student_ad" && requester?.role !== "teacher") {
+  if (!isTypeVisibleToRole(listing.type, requester?.role)) {
     throw new ApiError(404, "Listing not found", "LISTING_NOT_FOUND");
   }
 
@@ -260,14 +280,23 @@ export const browseListings = async (requester, query) => {
     };
     const sortStage = GEO_SORTS[sort] || GEO_SORTS.newest;
 
-    const [listings, countResult] = await Promise.all([
-      Listing.aggregate([geoStage, { $sort: sortStage }, { $skip: skip }, { $limit: limitNum }]),
-      Listing.aggregate([geoStage, { $count: "total" }]),
+    // A single $geoNear feeding two $facet branches — the geospatial index
+    // scan + distance computation runs once and is reused for both the data
+    // page and the count, instead of two separate aggregate() calls each
+    // re-running $geoNear from scratch for the same request.
+    const [result] = await Listing.aggregate([
+      geoStage,
+      {
+        $facet: {
+          data: [{ $sort: sortStage }, { $skip: skip }, { $limit: limitNum }],
+          totalCount: [{ $count: "total" }],
+        },
+      },
     ]);
 
     return {
-      listings,
-      pagination: { page: pageNum, limit: limitNum, total: countResult[0]?.total || 0 },
+      listings: result?.data || [],
+      pagination: { page: pageNum, limit: limitNum, total: result?.totalCount?.[0]?.total || 0 },
     };
   }
 

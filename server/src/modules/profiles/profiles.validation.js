@@ -1,5 +1,6 @@
 import { body, param } from "express-validator";
 import { locationBodyValidator } from "../../utils/geoValidation.js";
+import { MEDIUM_VALUES, CURRICULUM_VALUES } from "../../utils/enums.js";
 
 /**
  * All body validators here are `.optional()` — PUT is used with upsert
@@ -38,13 +39,13 @@ const rejectReadOnlyTeacherFields = [
 export const upsertTeacherProfileValidation = [
   nonEmptyStringArray("subjects", "subjects"),
   nonEmptyStringArray("grades", "grades"),
-  enumArray("medium", "medium", ["sinhala", "tamil", "english"]),
+  enumArray("medium", "medium", MEDIUM_VALUES),
   enumArray("classType", "classType", ["individual", "group", "online", "home_visit"]),
   body("curriculum")
     .optional()
     .isArray().withMessage("curriculum must be an array")
     .bail()
-    .custom((arr) => arr.every((v) => ["local", "cambridge", "edexcel"].includes(v)))
+    .custom((arr) => arr.every((v) => CURRICULUM_VALUES.includes(v)))
     .withMessage("curriculum must only contain: local, cambridge, edexcel"),
   body("bio").optional().isString().isLength({ max: 1000 }).withMessage("bio must be at most 1000 characters"),
   body("qualifications").optional().isArray().withMessage("qualifications must be an array"),
@@ -65,7 +66,7 @@ export const upsertStudentProfileValidation = [
     .optional()
     .isArray().withMessage("medium must be an array")
     .bail()
-    .custom((arr) => arr.every((v) => ["sinhala", "tamil", "english"].includes(v)))
+    .custom((arr) => arr.every((v) => MEDIUM_VALUES.includes(v)))
     .withMessage("medium must only contain: sinhala, tamil, english"),
   locationBodyValidator(),
 ];

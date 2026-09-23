@@ -9,6 +9,7 @@ import {
 import authenticate from "../../middleware/authenticate.js";
 import optionalAuthenticate from "../../middleware/optionalAuthenticate.js";
 import authorize from "../../middleware/authorize.js";
+import validate from "../../middleware/validate.js";
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.post(
   authenticate,
   authorize("teacher", "student", "parent"),
   createListingValidation,
+  validate,
   listingsController.createListing
 );
 
@@ -43,6 +45,7 @@ router.get(
   "/browse",
   optionalAuthenticate,
   browseListingsValidation,
+  validate,
   listingsController.browseListings
 );
 
@@ -55,6 +58,7 @@ router.get(
   "/:id",
   optionalAuthenticate,
   listingIdParamValidation,
+  validate,
   listingsController.getListing
 );
 
@@ -67,6 +71,7 @@ router.patch(
   authenticate,
   listingIdParamValidation,
   updateListingValidation,
+  validate,
   listingsController.updateListing
 );
 
@@ -80,6 +85,7 @@ router.delete(
   "/:id",
   authenticate,
   listingIdParamValidation,
+  validate,
   listingsController.closeListing
 );
 

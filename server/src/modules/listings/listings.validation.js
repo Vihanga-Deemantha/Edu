@@ -1,5 +1,6 @@
 import { body, param, query } from "express-validator";
 import { locationBodyValidator } from "../../utils/geoValidation.js";
+import { MEDIUM_VALUES, CURRICULUM_VALUES } from "../../utils/enums.js";
 
 const priceValidator = () =>
   body("price")
@@ -26,10 +27,10 @@ export const createListingValidation = [
   body("grade").trim().notEmpty().withMessage("grade is required"),
   body("medium")
     .notEmpty().withMessage("medium is required")
-    .isIn(["sinhala", "tamil", "english"]).withMessage("medium must be one of: sinhala, tamil, english"),
+    .isIn(MEDIUM_VALUES).withMessage("medium must be one of: sinhala, tamil, english"),
   body("curriculum")
     .optional({ nullable: true })
-    .isIn(["local", "cambridge", "edexcel"]).withMessage("curriculum must be one of: local, cambridge, edexcel"),
+    .isIn(CURRICULUM_VALUES).withMessage("curriculum must be one of: local, cambridge, edexcel"),
   priceValidator(),
   body("schedule").optional().isArray().withMessage("schedule must be an array"),
   body("description")
@@ -50,10 +51,10 @@ export const updateListingValidation = [
   body("grade").optional().trim().notEmpty().withMessage("grade cannot be empty"),
   body("medium")
     .optional()
-    .isIn(["sinhala", "tamil", "english"]).withMessage("medium must be one of: sinhala, tamil, english"),
+    .isIn(MEDIUM_VALUES).withMessage("medium must be one of: sinhala, tamil, english"),
   body("curriculum")
     .optional({ nullable: true })
-    .isIn(["local", "cambridge", "edexcel"]).withMessage("curriculum must be one of: local, cambridge, edexcel"),
+    .isIn(CURRICULUM_VALUES).withMessage("curriculum must be one of: local, cambridge, edexcel"),
   priceValidator(),
   body("schedule").optional().isArray().withMessage("schedule must be an array"),
   body("description")
@@ -75,8 +76,8 @@ export const listingIdParamValidation = [
 export const browseListingsValidation = [
   query("subject").optional().isString(),
   query("grade").optional().isString(),
-  query("medium").optional().isIn(["sinhala", "tamil", "english"]).withMessage("medium must be one of: sinhala, tamil, english"),
-  query("curriculum").optional().isIn(["local", "cambridge", "edexcel"]).withMessage("curriculum must be one of: local, cambridge, edexcel"),
+  query("medium").optional().isIn(MEDIUM_VALUES).withMessage("medium must be one of: sinhala, tamil, english"),
+  query("curriculum").optional().isIn(CURRICULUM_VALUES).withMessage("curriculum must be one of: local, cambridge, edexcel"),
   query("minPrice").optional().isFloat({ min: 0 }).withMessage("minPrice must be a non-negative number"),
   query("maxPrice").optional().isFloat({ min: 0 }).withMessage("maxPrice must be a non-negative number"),
   query("lat")

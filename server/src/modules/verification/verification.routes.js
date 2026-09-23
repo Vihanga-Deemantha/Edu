@@ -3,6 +3,7 @@ import * as verificationController from "./verification.controller.js";
 import { submitVerificationValidation } from "./verification.validation.js";
 import authenticate from "../../middleware/authenticate.js";
 import authorize from "../../middleware/authorize.js";
+import validate from "../../middleware/validate.js";
 
 const router = Router();
 
@@ -16,6 +17,7 @@ router.post(
   authenticate,
   authorize("teacher"),
   submitVerificationValidation,
+  validate,
   verificationController.submitVerification
 );
 

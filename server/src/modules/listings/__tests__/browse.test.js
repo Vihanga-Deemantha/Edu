@@ -153,6 +153,32 @@ describe("GET /api/listings/browse", () => {
 
     expect(res.body.data.listings).toHaveLength(1);
     expect(res.body.data.listings[0].location.coordinates).toEqual(NEARBY);
+    // Exercises the $facet-based single-pass geo count path — regression
+    // check that the count branch still reports correctly now that it's
+    // computed alongside the data branch instead of via a second $geoNear.
+    expect(res.body.data.pagination.total).toBe(1);
+  });
+
+  it("paginates within a geo search using the $facet count", async () => {
+    const teacherToken = await newTeacher();
+    for (let i = 0; i < 3; i += 1) {
+      await createListing(teacherToken, {
+        subject: "GeoPaginationTest",
+        location: { type: "Point", coordinates: NEARBY },
+      });
+    }
+
+    const res = await request(app).get("/api/listings/browse").query({
+      subject: "GeoPaginationTest",
+      lat: COLOMBO[1],
+      lng: COLOMBO[0],
+      radiusKm: 10,
+      page: 1,
+      limit: 2,
+    });
+
+    expect(res.body.data.listings).toHaveLength(2);
+    expect(res.body.data.pagination.total).toBe(3);
   });
 
   it("rejects lat without lng", async () => {

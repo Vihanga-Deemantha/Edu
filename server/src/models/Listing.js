@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { pointSchema } from "../utils/geoSchema.js";
+import { MEDIUM_VALUES, CURRICULUM_VALUES } from "../utils/enums.js";
 
 /**
  * Listing — the actual marketplace inventory. A `teacher_ad` (a teacher
@@ -42,12 +43,12 @@ const listingSchema = new mongoose.Schema(
     grade: { type: String, required: true, trim: true },
     medium: {
       type: String,
-      enum: ["sinhala", "tamil", "english"],
+      enum: MEDIUM_VALUES,
       required: true,
     },
     curriculum: {
       type: String,
-      enum: ["local", "cambridge", "edexcel"],
+      enum: CURRICULUM_VALUES,
       default: null,
     },
 

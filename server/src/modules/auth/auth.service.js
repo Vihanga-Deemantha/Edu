@@ -14,6 +14,15 @@ import { createAndSendOtp, verifyOtp } from "../../services/otp.service.js";
 const MAX_PLACEHOLDER_RETRIES = 3;
 
 /**
+ * User.email is `lowercase: true` on the schema, but that's a setter that
+ * only fires on assignment/save — it does nothing to a query filter. Every
+ * lookup-by-email site normalizes through this first, or a user who typed
+ * "Jane.Doe@Gmail.com" once (stored as "jane.doe@gmail.com") silently fails
+ * to match on a later login/reset attempt if they type it differently.
+ */
+const normalizeEmail = (email) => email.trim().toLowerCase();
+
+/**
  * Issue and store a fresh token pair for a user, as a new session.
  * Each call creates a NEW RefreshToken document rather than overwriting a
  * single stored hash — this is what lets someone stay logged in on their
@@ -79,10 +88,12 @@ const generateChildPlaceholderContact = () => ({
  * Admin accounts are never created here — seed them directly in the DB.
  */
 export const registerUser = async ({ name, email, phone, password, role }) => {
+  const normalizedEmail = normalizeEmail(email);
+
   // Check for existing email or phone
-  const existing = await User.findOne({ $or: [{ email }, { phone }] });
+  const existing = await User.findOne({ $or: [{ email: normalizedEmail }, { phone }] });
   if (existing) {
-    if (existing.email === email.toLowerCase()) {
+    if (existing.email === normalizedEmail) {
       throw new ApiError(409, "An account with this email already exists", "EMAIL_TAKEN");
     }
     throw new ApiError(409, "An account with this phone number already exists", "PHONE_TAKEN");
@@ -95,7 +106,7 @@ export const registerUser = async ({ name, email, phone, password, role }) => {
 
   const user = await User.create({
     name,
-    email,
+    email: normalizedEmail,
     phone,
     passwordHash,
     role,
@@ -150,7 +161,7 @@ export const resendOtp = async ({ userId, channel, purpose }) => {
  * Requires both emailVerified AND phoneVerified — returns specific 403 code if not.
  */
 export const loginUser = async ({ email, password, userAgent }) => {
-  const user = await User.findOne({ email }).select("+passwordHash");
+  const user = await User.findOne({ email: normalizeEmail(email) }).select("+passwordHash");
 
   // Generic error — don't leak whether email exists or password is wrong
   const INVALID_CREDS = new ApiError(401, "Invalid credentials", "INVALID_CREDENTIALS");
@@ -206,6 +217,18 @@ export const loginUser = async ({ email, password, userAgent }) => {
  * later lookup can distinguish "rotated, now being replayed" from "was
  * logged out" — logout still hard-deletes its session document outright,
  * since a logged-out token being reused later carries no reuse signal.
+ *
+ * The claim below (findOneAndUpdate filtered on used:false) is atomic —
+ * only one concurrent request can flip a given token from used:false to
+ * true. An earlier version read `stored.used`, decided, and wrote
+ * `stored.used = true` as two separate steps, which let two near-simultaneous
+ * refresh calls on the same token (e.g. two browser tabs racing right after
+ * their access tokens expired) both pass the check before either write
+ * landed, silently minting two sessions from one rotation. Now the second of
+ * two racing requests finds the atomic claim already lost and is treated as
+ * reuse — the standard, intentionally fail-closed behavior for rotating
+ * refresh tokens (forces a fresh login on the rare race, rather than
+ * silently allowing a double-spend).
  */
 export const refreshTokens = async (rawRefreshToken, userAgent) => {
   if (!rawRefreshToken) {
@@ -220,30 +243,30 @@ export const refreshTokens = async (rawRefreshToken, userAgent) => {
   }
 
   const incomingHash = hashToken(rawRefreshToken);
-  const stored = await RefreshToken.findOne({ tokenHash: incomingHash });
 
-  if (!stored) {
+  const claimed = await RefreshToken.findOneAndUpdate(
+    { tokenHash: incomingHash, used: false },
+    { $set: { used: true } },
+    { new: false }
+  );
+
+  if (!claimed) {
+    // Either never existed, or existed but was already claimed (by a prior
+    // rotation, or by the other side of the race this atomic claim closes).
+    const existing = await RefreshToken.findOne({ tokenHash: incomingHash });
+    if (existing) {
+      await RefreshToken.deleteMany({ userId: existing.userId });
+      throw new ApiError(401, "Token reuse detected. Please log in again.", "TOKEN_REUSE");
+    }
     throw new ApiError(401, "Session not found. Please log in again.", "INVALID_REFRESH_TOKEN");
-  }
-
-  if (stored.used) {
-    // This exact token was already consumed by a previous rotation —
-    // someone is replaying a token that should no longer be usable.
-    await RefreshToken.deleteMany({ userId: stored.userId });
-    throw new ApiError(401, "Token reuse detected. Please log in again.", "TOKEN_REUSE");
   }
 
   const user = await User.findById(decoded.sub);
   if (!user) {
-    await RefreshToken.deleteOne({ _id: stored._id });
     throw new ApiError(401, "User not found", "USER_NOT_FOUND");
   }
 
-  // Rotate: mark this session as consumed (kept around so a replay of it is
-  // recognizable, per the comment above) and issue a fresh pair in its place.
-  stored.used = true;
-  await stored.save();
-  const { accessToken, refreshToken } = await issueTokens(user, userAgent ?? stored.userAgent);
+  const { accessToken, refreshToken } = await issueTokens(user, userAgent ?? claimed.userAgent);
 
   return { user, accessToken, refreshToken };
 };
@@ -368,7 +391,8 @@ export const googleAuth = async (idToken, userAgent) => {
 
   // Dynamic import — only loaded when feature is enabled
   const { verifyGoogleIdToken } = await import("../../services/google.service.js");
-  const { email, name, sub, email_verified } = await verifyGoogleIdToken(idToken);
+  const { email: rawEmail, name, sub, email_verified } = await verifyGoogleIdToken(idToken);
+  const email = normalizeEmail(rawEmail);
 
   let user = await User.findOne({ $or: [{ googleId: sub }, { email }] });
 
@@ -447,7 +471,7 @@ export const forgotPassword = async (email) => {
   // explicitly here, user.passwordHash is always undefined and this would
   // silently skip sending a reset code for every account, including ones
   // that genuinely have a password.
-  const user = await User.findOne({ email }).select("+passwordHash");
+  const user = await User.findOne({ email: normalizeEmail(email) }).select("+passwordHash");
   if (user && user.passwordHash) {
     await createAndSendOtp(user._id, "email", "password_reset");
   }
@@ -459,7 +483,7 @@ export const forgotPassword = async (email) => {
  * want any stolen/forgotten session on another device logged out too).
  */
 export const resetPassword = async ({ email, code, newPassword }) => {
-  const user = await User.findOne({ email }).select("+passwordHash");
+  const user = await User.findOne({ email: normalizeEmail(email) }).select("+passwordHash");
   if (!user || !user.passwordHash) {
     throw new ApiError(400, "Invalid or expired reset code.", "INVALID_RESET");
   }
