@@ -2,6 +2,17 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
 /**
+ * jsonwebtoken's HS256 signing is deterministic — the same payload signed
+ * within the same second (the resolution of the `iat` claim it auto-adds)
+ * produces the exact same JWT string. Without something per-token in the
+ * payload, two genuine logins for the same user within the same second
+ * (perfectly normal — someone logging in on their phone right after their
+ * laptop) would mint byte-identical refresh tokens, colliding on
+ * RefreshToken's unique tokenHash index. `jti` exists exactly for this.
+ */
+const randomJti = () => crypto.randomUUID();
+
+/**
  * Generates a short-lived access token (JWT).
  * Sent in the response body — the client stores it in memory, NOT localStorage.
  */
@@ -20,7 +31,7 @@ export const generateAccessToken = (user) => {
  */
 export const generateRefreshToken = (user) => {
   return jwt.sign(
-    { sub: user._id },
+    { sub: user._id, jti: randomJti() },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: process.env.JWT_REFRESH_EXPIRY }
   );

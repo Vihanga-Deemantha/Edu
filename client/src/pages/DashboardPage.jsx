@@ -5,7 +5,7 @@ const DashboardPage = () => {
 
   return (
     <div className="container" style={{ padding: "3rem 1.5rem" }}>
-      <div className="flex flex-col md-flex-row items-start md-items-center justify-between gap-6" style={{ marginBottom: "3rem", borderBottom: "1px solid var(--border)", paddingBottom: "2rem" }}>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6" style={{ marginBottom: "3rem", borderBottom: "1px solid var(--border)", paddingBottom: "2rem" }}>
         <div className="flex items-center gap-6">
           <div style={{ width: "4rem", height: "4rem", borderRadius: "1rem", backgroundColor: "var(--secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: "700", color: "var(--primary)", boxShadow: "0 4px 10px rgba(79, 125, 243, 0.1)", flexShrink: 0 }}>
             {user?.name?.charAt(0).toUpperCase()}
@@ -26,7 +26,7 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      <div className="flex flex-col md-flex-row md-grid-cols-2 lg-grid-cols-4 gap-4" style={{ marginBottom: "3rem", display: "grid" }}>
+      <div className="flex flex-col md:flex-row md:grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: "3rem", display: "grid" }}>
         <div className="friendly-card" style={{ padding: "1.5rem" }}>
           <div style={{ fontSize: "0.75rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-secondary)", marginBottom: "0.5rem" }}>Account Role</div>
           <div style={{ fontSize: "1.25rem", fontWeight: "700", color: "var(--text-main)", textTransform: "capitalize" }}>{user?.role}</div>

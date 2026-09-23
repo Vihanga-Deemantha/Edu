@@ -75,10 +75,13 @@ export const AuthProvider = ({ children }) => {
       setStatus("authenticated");
       return loggedInUser;
     } catch (err) {
-      // If backend says account not verified, go to OTP flow
-      if (err.response?.data?.error?.code === "ACCOUNT_NOT_VERIFIED") {
-        // We don't have a userId from the login response, but the user can
-        // use resend-otp from the verify page using their email-retrieved userId
+      // If backend says account not verified, go to OTP flow. The backend
+      // now includes the userId on this specific error (see auth.service.js
+      // loginUser) — without it, VerifyOtpPage had no way to know which
+      // account to resume verifying and the flow was a dead end.
+      const error = err.response?.data?.error;
+      if (error?.code === "ACCOUNT_NOT_VERIFIED") {
+        setPendingUserId(error.userId ?? null);
         setStatus("otp_pending");
       }
       throw err;
@@ -148,7 +151,29 @@ export const AuthProvider = ({ children }) => {
 
   const registerChild = async (payload) => {
     const res = await authApi.registerChild(payload);
+    // Re-fetch /me so `user.linkedChildIds` (the actual source of truth for
+    // the children list) picks up the new child immediately, instead of the
+    // page maintaining its own separate copy of the list that would reset to
+    // empty on the next reload.
+    await refreshUser();
     return res.data.data.child;
+  };
+
+  /** Re-fetches the current user from /auth/me and updates context state. */
+  const refreshUser = async () => {
+    const res = await authApi.me();
+    setUser(res.data.data.user);
+    return res.data.data.user;
+  };
+
+  const forgotPassword = async (email) => {
+    const res = await authApi.forgotPassword(email);
+    return res.data.data;
+  };
+
+  const resetPassword = async (email, code, newPassword) => {
+    const res = await authApi.resetPassword(email, code, newPassword);
+    return res.data.data;
   };
 
   const value = {
@@ -164,6 +189,9 @@ export const AuthProvider = ({ children }) => {
     googleLogin,
     completeProfile,
     registerChild,
+    refreshUser,
+    forgotPassword,
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

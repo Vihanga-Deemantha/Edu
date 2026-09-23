@@ -73,3 +73,13 @@ export const getMyVerification = async (userId) => {
 
   return verification; // null if never submitted — frontend shows 'not_submitted' state
 };
+
+/**
+ * Look up a single stored document field (a Cloudinary public_id) for
+ * signed-URL viewing. Used only by the permission-checked document-view
+ * route — never exposes the whole record.
+ */
+export const getVerificationDocumentField = async (userId, field) => {
+  const verification = await TeacherVerification.findOne({ userId });
+  return verification ? verification[field] : null;
+};

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
@@ -8,7 +7,11 @@ import FormError from "../components/FormError.jsx";
 
 const ChildAccountPage = () => {
   const { user, registerChild } = useAuth();
-  const [childrenList, setChildrenList] = useState(user?.children || []);
+  // The parent's children live on user.linkedChildIds (populated by GET
+  // /auth/me) — this is the actual source of truth, not a page-local copy,
+  // so the list is correct immediately on load and after a refresh, not just
+  // for children added during the current visit.
+  const childrenList = user?.linkedChildIds || [];
 
   const {
     register,
@@ -19,8 +22,7 @@ const ChildAccountPage = () => {
 
   const onSubmit = async (data) => {
     try {
-      const newChild = await registerChild(data);
-      setChildrenList([...childrenList, newChild]);
+      await registerChild(data);
       toast.success("Child account created successfully!");
       reset();
     } catch (err) {
@@ -40,10 +42,10 @@ const ChildAccountPage = () => {
         </p>
       </div>
 
-      <div className="flex flex-col lg-flex-row lg-grid-cols-2 gap-8" style={{ display: "grid" }}>
-        <div className="friendly-card" style={{ height: "fit-content" }}>
+      <div className="flex flex-col lg:flex-row lg:grid-cols-2 gap-8" style={{ display: "grid" }}>
+        <div className="friendly-card" style={{ height: "fit-content", padding: "1.5rem" }}>
           <h2 className="text-xl font-bold" style={{ marginBottom: "1.5rem", paddingBottom: "1rem", borderBottom: "1px solid var(--border)", color: "var(--text-main)" }}>Add a Child</h2>
-          
+
           <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
             <div className="form-group" style={{ marginBottom: "0" }}>
               <label htmlFor="child-name" className="form-label">Child&apos;s Name</label>
@@ -73,34 +75,22 @@ const ChildAccountPage = () => {
               <FormError message={errors.grade?.message} />
             </div>
 
-            <div className="form-group" style={{ marginBottom: "0" }}>
-              <div className="flex items-center justify-between">
-                <label htmlFor="child-email" className="form-label">Email</label>
-                <span style={{ fontSize: "0.625rem", textTransform: "uppercase", fontWeight: "700", color: "var(--text-secondary)", letterSpacing: "0.05em" }}>Optional</span>
-              </div>
-              <input
-                id="child-email"
-                type="email"
-                className={`form-input ${errors.email ? "input-error" : ""}`}
-                placeholder="Optional"
-                {...register("email")}
-              />
-              <FormError message={errors.email?.message} />
-            </div>
+            {/* No email/phone fields here — a child account never stores its
+                own contact info. All communication routes through the
+                parent's verified email/phone, by design. */}
 
             <div className="form-group" style={{ marginBottom: "0" }}>
-              <div className="flex items-center justify-between">
-                <label htmlFor="child-phone" className="form-label">Phone</label>
-                <span style={{ fontSize: "0.625rem", textTransform: "uppercase", fontWeight: "700", color: "var(--text-secondary)", letterSpacing: "0.05em" }}>Optional</span>
+              <div className="form-checkbox-row">
+                <input
+                  id="child-attest"
+                  type="checkbox"
+                  {...register("attestedGuardianship")}
+                />
+                <label htmlFor="child-attest" className="text-sm" style={{ color: "var(--text-main)" }}>
+                  I confirm I am the parent or legal guardian of this child and am responsible for their account.
+                </label>
               </div>
-              <input
-                id="child-phone"
-                type="tel"
-                className={`form-input ${errors.phone ? "input-error" : ""}`}
-                placeholder="Optional"
-                {...register("phone")}
-              />
-              <FormError message={errors.phone?.message} />
+              <FormError message={errors.attestedGuardianship?.message} />
             </div>
 
             <button
@@ -114,9 +104,9 @@ const ChildAccountPage = () => {
           </form>
         </div>
 
-        <div className="friendly-card" style={{ height: "fit-content" }}>
+        <div className="friendly-card" style={{ height: "fit-content", padding: "1.5rem" }}>
           <h2 className="text-xl font-bold" style={{ marginBottom: "1.5rem", paddingBottom: "1rem", borderBottom: "1px solid var(--border)", color: "var(--text-main)" }}>Your Children</h2>
-          
+
           {childrenList.length === 0 ? (
             <div className="text-center text-muted" style={{ padding: "2.5rem 0", border: "2px dashed var(--border)", borderRadius: "var(--radius-lg)" }}>
               You haven&apos;t added any children yet.

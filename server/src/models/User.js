@@ -78,12 +78,38 @@ const userSchema = new mongoose.Schema(
 
     /**
      * Google-specific — the 'sub' claim from the Google ID token.
-     * sparse: true means the unique index only applies to documents that
-     * actually have this field set (local-only accounts have null here).
+     *
+     * Deliberately NO `default` here. `sparse: true` on the index below only
+     * excludes documents where this field is entirely ABSENT — a document
+     * that has the field explicitly set to `null` still counts as "present"
+     * for the sparse index's uniqueness check. A `default: null` was tried
+     * first and meant every local-auth user got an explicit `googleId: null`
+     * on creation, so the *second* local user ever registered would collide
+     * with the first on this index and fail with a nonsensical "Googleid is
+     * already in use" error. Leaving the field undefined for local users
+     * makes it genuinely absent, which is what sparse actually needs.
      */
     googleId: {
       type: String,
-      default: null,
+    },
+
+    /**
+     * profileComplete — false only for a brand-new Google Sign-In account that
+     * hasn't picked a role or entered a real phone number yet. Every
+     * local-registered account is complete from the moment it's created.
+     *
+     * This is the single source of truth for "does this Google user still
+     * need the complete-profile step" — deliberately NOT inferred from
+     * whether `role` happens to be set (a placeholder role is still assigned
+     * at creation so the schema's `required` constraint is satisfied) and NOT
+     * inferred from the shape of the `phone` value. Both of those were tried
+     * first and both broke: a real Sri Lankan mobile number can start with
+     * the same prefix a placeholder phone used, so string-sniffing the phone
+     * is not a safe signal. This explicit flag is.
+     */
+    profileComplete: {
+      type: Boolean,
+      default: true,
     },
 
     isActive: {
@@ -137,16 +163,6 @@ const userSchema = new mongoose.Schema(
     attestedAt: {
       type: Date,
       default: null,
-    },
-
-    /**
-     * select: false — stored hash of the current valid refresh token.
-     * Used to detect reuse of rotated/revoked tokens and to invalidate
-     * sessions on logout. We store the hash, not the raw token.
-     */
-    refreshTokenHash: {
-      type: String,
-      select: false,
     },
   },
   {

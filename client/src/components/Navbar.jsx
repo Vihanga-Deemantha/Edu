@@ -17,6 +17,11 @@ const Navbar = () => {
 
   const isLanding = location.pathname === "/";
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
+
   const navStyle = {
     position: "sticky",
     top: 0,

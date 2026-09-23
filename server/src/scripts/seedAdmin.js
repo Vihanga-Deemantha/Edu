@@ -47,7 +47,13 @@ async function seed() {
         phone: ADMIN.phone,
         passwordHash,
         role: "admin",
-        verified: true,
+        // NOTE: the User schema has no `verified` field (it was replaced by
+        // emailVerified/phoneVerified in the Phase 0 upgrade) — this used to
+        // set a field that doesn't exist, silently leaving both flags false,
+        // which meant the seeded admin could never pass login's verification
+        // gate. Set both explicitly instead.
+        emailVerified: true,
+        phoneVerified: true,
         isActive: true,
         loginDisabled: false,
       },

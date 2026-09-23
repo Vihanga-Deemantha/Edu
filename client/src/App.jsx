@@ -5,6 +5,8 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
+import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
 import VerifyOtpPage from "./pages/VerifyOtpPage.jsx";
 import CompleteProfilePage from "./pages/CompleteProfilePage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
@@ -19,6 +21,8 @@ const App = () => {
           <Route path="/" element={<LandingPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-otp" element={<VerifyOtpPage />} />
           <Route path="/complete-profile" element={<CompleteProfilePage />} />
 

@@ -10,6 +10,14 @@ const OTP_RESEND_COOLDOWN_SECONDS = 60;
 const OTP_MAX_ATTEMPTS = 5;
 
 /**
+ * TEST-ONLY hook: when NODE_ENV=test, createAndSendOtp stashes the raw code
+ * here instead of only logging it, so the test suite can read the exact code
+ * it needs to complete a verify-otp flow without weakening how codes are
+ * hashed/stored for real users. Never read anywhere outside test files.
+ */
+export const __testOtpCapture = {};
+
+/**
  * Generate a cryptographically random 6-digit OTP.
  * Uses crypto.randomInt to avoid modulo bias.
  */
@@ -61,6 +69,10 @@ export const createAndSendOtp = async (userId, channel, purpose) => {
 
   await OtpCode.create({ userId, channel, purpose, codeHash, expiresAt });
 
+  if (process.env.NODE_ENV === "test") {
+    __testOtpCapture[`${userId}:${channel}:${purpose}`] = rawCode;
+  }
+
   // Dispatch via the appropriate channel
   if (channel === "email") {
     await sendOtpEmail({ to: user.email, code: rawCode, purpose });
@@ -73,9 +85,13 @@ export const createAndSendOtp = async (userId, channel, purpose) => {
  * Verify a submitted OTP code against the stored hash.
  *
  * On success:
- *   - Marks user.emailVerified or user.phoneVerified = true
+ *   - For purpose 'signup' only: marks user.emailVerified or user.phoneVerified = true.
+ *     A 'password_reset' or 'login' OTP verifies identity for that specific
+ *     action — it deliberately does NOT also flip the channel's verified
+ *     flag as a side effect; the caller (e.g. resetPassword) decides what a
+ *     successful verification means for its own flow.
  *   - Deletes the used OTP document
- *   - Returns the updated user
+ *   - Returns the current user document
  *
  * On failure:
  *   - Increments the attempts counter
@@ -85,7 +101,7 @@ export const createAndSendOtp = async (userId, channel, purpose) => {
  * @param {'email'|'phone'} channel
  * @param {'signup'|'login'|'password_reset'} purpose
  * @param {string} submittedCode - The raw 6-digit code the user entered
- * @returns {Promise<User>} - Updated user document
+ * @returns {Promise<User>} - The user document
  */
 export const verifyOtp = async (userId, channel, purpose, submittedCode) => {
   // Find the latest non-expired code (TTL index keeps expired ones cleaned up,
@@ -120,13 +136,14 @@ export const verifyOtp = async (userId, channel, purpose, submittedCode) => {
     throw new ApiError(400, "Incorrect verification code.", "OTP_INVALID");
   }
 
-  // Code is correct — update the user's verified flag
-  const updateField = channel === "email" ? "emailVerified" : "phoneVerified";
-  const user = await User.findByIdAndUpdate(
-    userId,
-    { [updateField]: true },
-    { new: true }
-  );
+  // Code is correct.
+  let user;
+  if (purpose === "signup") {
+    const updateField = channel === "email" ? "emailVerified" : "phoneVerified";
+    user = await User.findByIdAndUpdate(userId, { [updateField]: true }, { returnDocument: "after" });
+  } else {
+    user = await User.findById(userId);
+  }
 
   // Delete the used OTP
   await OtpCode.deleteOne({ _id: otpDoc._id });
