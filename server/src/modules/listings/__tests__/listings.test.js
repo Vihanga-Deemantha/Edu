@@ -124,6 +124,28 @@ describe("POST /api/listings", () => {
     expect(res.status).toBe(201);
     expect(res.body.data.listing.location.coordinates).toEqual([79.86, 6.93]);
   });
+
+  it("respects an explicit location: null instead of denormalizing the profile's location", async () => {
+    const { accessToken } = await registerAndVerify({ role: "teacher" });
+    await request(app)
+      .put("/api/profiles/teacher")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        subjects: ["Mathematics"],
+        grades: ["Grade 10"],
+        medium: ["english"],
+        classType: ["individual"],
+        location: { type: "Point", coordinates: [79.86, 6.93] },
+      });
+
+    const res = await request(app)
+      .post("/api/listings")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ ...validTeacherAd(), location: null });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.listing.location).toBeFalsy();
+  });
 });
 
 describe("GET /api/listings/:id — visibility", () => {

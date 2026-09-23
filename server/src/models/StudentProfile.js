@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { pointSchema } from "../utils/geoSchema.js";
+import { MEDIUM_VALUES } from "../utils/enums.js";
 
 /**
  * StudentProfile — grade/subject/location info for a student or parent-managed
@@ -32,7 +33,7 @@ const studentProfileSchema = new mongoose.Schema(
 
     medium: {
       type: [String],
-      enum: ["sinhala", "tamil", "english"],
+      enum: MEDIUM_VALUES,
       default: [],
     },
 

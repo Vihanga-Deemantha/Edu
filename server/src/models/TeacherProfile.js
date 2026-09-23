@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { pointSchema } from "../utils/geoSchema.js";
+import { MEDIUM_VALUES, CURRICULUM_VALUES } from "../utils/enums.js";
 
 /**
  * TeacherProfile — the public-facing profile a teacher builds on top of their
@@ -37,7 +38,7 @@ const teacherProfileSchema = new mongoose.Schema(
 
     medium: {
       type: [String],
-      enum: ["sinhala", "tamil", "english"],
+      enum: MEDIUM_VALUES,
       required: true,
       validate: {
         validator: (arr) => Array.isArray(arr) && arr.length > 0,
@@ -47,7 +48,7 @@ const teacherProfileSchema = new mongoose.Schema(
 
     curriculum: {
       type: [String],
-      enum: ["local", "cambridge", "edexcel"],
+      enum: CURRICULUM_VALUES,
       default: [],
     },
 

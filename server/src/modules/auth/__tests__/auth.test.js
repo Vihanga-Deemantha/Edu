@@ -75,6 +75,32 @@ describe("OTP verification and login gating", () => {
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe("INVALID_CREDENTIALS");
   });
+
+  it("logs in successfully when the email is typed in different casing than registered", async () => {
+    const { payload } = await registerAndVerify();
+    const mixedCaseEmail = payload.email
+      .split("")
+      .map((c, i) => (i % 2 === 0 ? c.toUpperCase() : c))
+      .join("");
+
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: mixedCaseEmail, password: payload.password });
+
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects a duplicate registration that only differs from an existing account by email casing", async () => {
+    const payload = baseTeacher();
+    await request(app).post("/api/auth/register").send(payload);
+
+    const res = await request(app)
+      .post("/api/auth/register")
+      .send({ ...payload, email: payload.email.toUpperCase(), phone: uniquePhone() });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe("EMAIL_TAKEN");
+  });
 });
 
 describe("GET /api/auth/me", () => {
@@ -233,5 +259,16 @@ describe("forgot / reset password", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+  });
+
+  it("sends a reset code even when the email is typed in different casing than registered", async () => {
+    const { payload, userId } = await registerAndVerify();
+
+    const res = await request(app)
+      .post("/api/auth/forgot-password")
+      .send({ email: payload.email.toUpperCase() });
+
+    expect(res.status).toBe(200);
+    expect(__testOtpCapture[`${userId}:email:password_reset`]).toMatch(/^\d{6}$/);
   });
 });

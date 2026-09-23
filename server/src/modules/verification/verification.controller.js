@@ -1,4 +1,3 @@
-import { validationResult } from "express-validator";
 import * as verificationService from "./verification.service.js";
 import ApiError from "../../utils/ApiError.js";
 import { getSignedUploadParams, getSignedViewUrl } from "../../services/upload.service.js";
@@ -7,19 +6,12 @@ import { getSignedUploadParams, getSignedViewUrl } from "../../services/upload.s
 // this route — qualificationDocuments is an array and isn't wired up here yet.
 const VIEWABLE_FIELDS = ["nicDocumentUrl", "selfieWithIdUrl", "policeClearanceUrl"];
 
-const validate = (req) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const err = new ApiError(422, errors.array()[0].msg, "VALIDATION_ERROR");
-    err.details = errors.array();
-    throw err;
-  }
-};
+// Request validation now happens in the `validate` route middleware
+// (server/src/middleware/validate.js).
 
 // ─── POST /api/verification/teacher/submit ───────────────────────────────────
 export const submitVerification = async (req, res, next) => {
   try {
-    validate(req);
     const {
       nicNumber,
       nicDocumentUrl,

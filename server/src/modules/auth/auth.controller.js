@@ -1,24 +1,14 @@
-import { validationResult } from "express-validator";
 import * as authService from "./auth.service.js";
 import { setRefreshTokenCookie, clearRefreshTokenCookie } from "../../utils/generateTokens.js";
 import ApiError from "../../utils/ApiError.js";
 
-/**
- * Helper: check express-validator results and throw formatted 422 if invalid.
- */
-const validate = (req) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const err = new ApiError(422, errors.array()[0].msg, "VALIDATION_ERROR");
-    err.details = errors.array();
-    throw err;
-  }
-};
+// Request validation now happens in the `validate` route middleware
+// (server/src/middleware/validate.js) — every handler below assumes it has
+// already run and req.body/req.params have passed their validator chain.
 
 // ─── POST /api/auth/register ─────────────────────────────────────────────────
 export const register = async (req, res, next) => {
   try {
-    validate(req);
     const { name, email, phone, password, role } = req.body;
     const { user } = await authService.registerUser({ name, email, phone, password, role });
 
@@ -40,7 +30,6 @@ export const register = async (req, res, next) => {
 // ─── POST /api/auth/verify-otp ───────────────────────────────────────────────
 export const verifyOtp = async (req, res, next) => {
   try {
-    validate(req);
     const { userId, channel, code } = req.body;
     // purpose is always 'signup' for this flow
     const result = await authService.verifyOtpAndMaybeLogin({
@@ -81,7 +70,6 @@ export const verifyOtp = async (req, res, next) => {
 // ─── POST /api/auth/resend-otp ───────────────────────────────────────────────
 export const resendOtp = async (req, res, next) => {
   try {
-    validate(req);
     const { userId, channel } = req.body;
     await authService.resendOtp({ userId, channel, purpose: "signup" });
 
@@ -99,7 +87,6 @@ export const resendOtp = async (req, res, next) => {
 // ─── POST /api/auth/login ────────────────────────────────────────────────────
 export const login = async (req, res, next) => {
   try {
-    validate(req);
     const { email, password } = req.body;
     const { user, accessToken, refreshToken } = await authService.loginUser({
       email,
@@ -180,7 +167,6 @@ export const getMe = async (req, res, next) => {
 // ─── POST /api/auth/register-child  (protected: parent only) ────────────────
 export const registerChild = async (req, res, next) => {
   try {
-    validate(req);
     const { name, grade, attestedGuardianship } = req.body;
     const child = await authService.registerChild({
       name,
@@ -213,7 +199,6 @@ export const registerChild = async (req, res, next) => {
 // ─── POST /api/auth/google  (public, feature-flagged) ───────────────────────
 export const googleAuth = async (req, res, next) => {
   try {
-    validate(req);
     const { idToken } = req.body;
     const result = await authService.googleAuth(idToken, req.headers["user-agent"]);
 
@@ -247,7 +232,6 @@ export const googleAuth = async (req, res, next) => {
 // ─── PATCH /api/auth/complete-profile  (protected) ──────────────────────────
 export const completeProfile = async (req, res, next) => {
   try {
-    validate(req);
     const { role, phone } = req.body;
     const user = await authService.completeProfile({ userId: req.user.id, role, phone });
 
@@ -270,7 +254,6 @@ export const completeProfile = async (req, res, next) => {
 // is registered — see auth.service.js's forgotPassword for why.
 export const forgotPassword = async (req, res, next) => {
   try {
-    validate(req);
     const { email } = req.body;
     await authService.forgotPassword(email);
 
@@ -288,7 +271,6 @@ export const forgotPassword = async (req, res, next) => {
 // ─── POST /api/auth/reset-password  (public) ────────────────────────────────
 export const resetPassword = async (req, res, next) => {
   try {
-    validate(req);
     const { email, code, newPassword } = req.body;
     await authService.resetPassword({ email, code, newPassword });
 

@@ -1,21 +1,12 @@
-import { validationResult } from "express-validator";
 import * as profilesService from "./profiles.service.js";
-import ApiError from "../../utils/ApiError.js";
 import { logEventFromRequest } from "../../services/event.service.js";
 
-const validate = (req) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const err = new ApiError(422, errors.array()[0].msg, "VALIDATION_ERROR");
-    err.details = errors.array();
-    throw err;
-  }
-};
+// Request validation now happens in the `validate` route middleware
+// (server/src/middleware/validate.js).
 
 // ─── PUT /api/profiles/teacher  (protected: teacher only) ───────────────────
 export const upsertTeacherProfile = async (req, res, next) => {
   try {
-    validate(req);
     const profile = await profilesService.upsertTeacherProfile(req.user.id, req.body);
     res.status(200).json({ success: true, data: { profile } });
   } catch (err) {
@@ -26,7 +17,6 @@ export const upsertTeacherProfile = async (req, res, next) => {
 // ─── GET /api/profiles/teacher/:userId  (public) ─────────────────────────────
 export const getTeacherProfile = async (req, res, next) => {
   try {
-    validate(req);
     const profile = await profilesService.getPublicTeacherProfile(req.params.userId);
 
     logEventFromRequest(req, {
@@ -45,7 +35,6 @@ export const getTeacherProfile = async (req, res, next) => {
 // ─── PUT /api/profiles/student  (protected: student or parent) ──────────────
 export const upsertStudentProfile = async (req, res, next) => {
   try {
-    validate(req);
     const { targetUserId, ...fields } = req.body;
     const profile = await profilesService.upsertStudentProfile({
       requesterId: req.user.id,
@@ -61,7 +50,6 @@ export const upsertStudentProfile = async (req, res, next) => {
 // ─── GET /api/profiles/student/:userId  (protected: teacher, student, parent) ─
 export const getStudentProfile = async (req, res, next) => {
   try {
-    validate(req);
     const profile = await profilesService.getStudentProfile({
       requesterId: req.user.id,
       requesterRole: req.user.role,

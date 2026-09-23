@@ -1,21 +1,12 @@
-import { validationResult } from "express-validator";
 import * as listingsService from "./listings.service.js";
-import ApiError from "../../utils/ApiError.js";
 import { logEventFromRequest } from "../../services/event.service.js";
 
-const validate = (req) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const err = new ApiError(422, errors.array()[0].msg, "VALIDATION_ERROR");
-    err.details = errors.array();
-    throw err;
-  }
-};
+// Request validation now happens in the `validate` route middleware
+// (server/src/middleware/validate.js).
 
 // ─── POST /api/listings  (protected: teacher, student, parent) ──────────────
 export const createListing = async (req, res, next) => {
   try {
-    validate(req);
     const listing = await listingsService.createListing({
       requesterId: req.user.id,
       requesterRole: req.user.role,
@@ -40,7 +31,6 @@ export const getMyListings = async (req, res, next) => {
 // ─── GET /api/listings/browse  (public, optional auth) ───────────────────────
 export const browseListings = async (req, res, next) => {
   try {
-    validate(req);
     const { listings, pagination } = await listingsService.browseListings(req.user || null, req.query);
 
     // Logged unconditionally, including zero-result searches — a query with
@@ -57,7 +47,6 @@ export const browseListings = async (req, res, next) => {
 // ─── GET /api/listings/:id  (optional auth — guests allowed) ────────────────
 export const getListing = async (req, res, next) => {
   try {
-    validate(req);
     const listing = await listingsService.getListingById(req.params.id, req.user || null);
 
     // Only reached once getListingById's visibility check has already
@@ -78,7 +67,6 @@ export const getListing = async (req, res, next) => {
 // ─── PATCH /api/listings/:id  (protected, owner/parent-of-owner only) ───────
 export const updateListing = async (req, res, next) => {
   try {
-    validate(req);
     const listing = await listingsService.updateListing({
       listingId: req.params.id,
       requesterId: req.user.id,
@@ -94,7 +82,6 @@ export const updateListing = async (req, res, next) => {
 // ─── DELETE /api/listings/:id  (protected — soft delete via status:"closed") ─
 export const closeListing = async (req, res, next) => {
   try {
-    validate(req);
     const listing = await listingsService.closeListing(req.params.id, req.user.id, req.user.role);
     res.status(200).json({ success: true, data: { listing } });
   } catch (err) {

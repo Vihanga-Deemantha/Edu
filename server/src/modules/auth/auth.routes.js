@@ -13,6 +13,7 @@ import {
 } from "./auth.validation.js";
 import authenticate from "../../middleware/authenticate.js";
 import authorize from "../../middleware/authorize.js";
+import validate from "../../middleware/validate.js";
 import { authRateLimiter, otpSendLimiter, otpVerifyLimiter } from "../../middleware/rateLimiter.js";
 
 const router = Router();
@@ -20,29 +21,29 @@ const router = Router();
 // ─── Public routes ───────────────────────────────────────────────────────────
 
 // Registration — rate limited; returns userId + verification status, no tokens
-router.post("/register", authRateLimiter, registerValidation, authController.register);
+router.post("/register", authRateLimiter, registerValidation, validate, authController.register);
 
 // Login — rate limited; blocked until both channels verified
-router.post("/login", authRateLimiter, loginValidation, authController.login);
+router.post("/login", authRateLimiter, loginValidation, validate, authController.login);
 
 // OTP verification (signup flow) — rate limited to slow scripted guessing
-router.post("/verify-otp", otpVerifyLimiter, verifyOtpValidation, authController.verifyOtp);
+router.post("/verify-otp", otpVerifyLimiter, verifyOtpValidation, validate, authController.verifyOtp);
 
 // OTP resend — OTP send rate limiter (3/15min per IP)
-router.post("/resend-otp", otpSendLimiter, resendOtpValidation, authController.resendOtp);
+router.post("/resend-otp", otpSendLimiter, resendOtpValidation, validate, authController.resendOtp);
 
 // Token refresh — reads from httpOnly cookie
 router.post("/refresh", authController.refresh);
 
 // Forgot/reset password — reuses the same OTP infrastructure (purpose: password_reset)
-router.post("/forgot-password", otpSendLimiter, forgotPasswordValidation, authController.forgotPassword);
-router.post("/reset-password", otpVerifyLimiter, resetPasswordValidation, authController.resetPassword);
+router.post("/forgot-password", otpSendLimiter, forgotPasswordValidation, validate, authController.forgotPassword);
+router.post("/reset-password", otpVerifyLimiter, resetPasswordValidation, validate, authController.resetPassword);
 
 // ─── Google Sign-In (feature-flagged) ───────────────────────────────────────
 // Route is only registered when GOOGLE_SIGNIN_ENABLED=true in .env
 // This prevents crashes when GOOGLE_CLIENT_ID is not configured.
 if (process.env.GOOGLE_SIGNIN_ENABLED === "true") {
-  router.post("/google", googleAuthValidation, authController.googleAuth);
+  router.post("/google", googleAuthValidation, validate, authController.googleAuth);
 }
 
 // ─── Protected routes ────────────────────────────────────────────────────────
@@ -52,6 +53,7 @@ router.post(
   authenticate,
   authorize("parent"),
   registerChildValidation,
+  validate,
   authController.registerChild
 );
 
@@ -60,6 +62,7 @@ router.patch(
   "/complete-profile",
   authenticate,
   completeProfileValidation,
+  validate,
   authController.completeProfile
 );
 

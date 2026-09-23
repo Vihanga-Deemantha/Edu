@@ -28,21 +28,21 @@ export const upsertTeacherProfile = async (userId, rawFields) => {
   const existing = await TeacherProfile.findOne({ userId });
 
   if (existing) {
-    // Deliberately NOT `upsert: true` here. Mongoose's required-field
-    // validators on findOneAndUpdate run against the update operators
-    // themselves (not the matched document) whenever upsert is enabled —
-    // it has to assume the operation *could* end up creating a fresh
-    // document, since it validates before knowing whether the query will
-    // match. With upsert:true, a partial `{ $set: { bio: "..." } }` update
-    // was being rejected for "missing" subjects/grades/medium/classType
-    // even though an existing document already had all of them and this
-    // update never touched those fields. Since we've already confirmed the
-    // document exists, there's no ambiguity to create in the first place.
-    return TeacherProfile.findOneAndUpdate(
-      { userId },
-      { $set: fields },
-      { new: true, runValidators: true }
-    );
+    // Mutate the already-loaded document and .save() it, rather than a
+    // second findOneAndUpdate re-querying the identical document. Also
+    // sidesteps the upsert:true + runValidators gotcha this codebase hit
+    // once already: Mongoose's required-field validators on
+    // findOneAndUpdate run against the update operators themselves (not the
+    // matched document) whenever upsert is enabled, since it validates
+    // before knowing whether the query will match — with upsert:true, a
+    // partial `{ $set: { bio: "..." } }` update was rejected as "missing"
+    // subjects/grades/medium/classType even though the existing document
+    // already had all of them. `.save()` on an already-loaded, known-to-exist
+    // document validates its full current state instead, with no such
+    // ambiguity and no second round trip.
+    Object.assign(existing, fields);
+    await existing.save();
+    return existing;
   }
 
   const missing = REQUIRED_ON_CREATE.filter(
@@ -105,16 +105,14 @@ export const upsertStudentProfile = async ({ requesterId, targetUserId, ...field
     );
   }
 
-  // Same reasoning as upsertTeacherProfile above — branch explicitly instead
-  // of leaning on findOneAndUpdate's upsert:true + runValidators interaction.
+  // Same reasoning as upsertTeacherProfile above — fetch once, mutate,
+  // .save(), instead of a second findOneAndUpdate re-querying the same doc.
   const existing = await StudentProfile.findOne({ userId: targetUserId });
 
   if (existing) {
-    return StudentProfile.findOneAndUpdate(
-      { userId: targetUserId },
-      { $set: fields },
-      { new: true, runValidators: true }
-    );
+    Object.assign(existing, fields);
+    await existing.save();
+    return existing;
   }
 
   return StudentProfile.create({ userId: targetUserId, ...fields });
