@@ -68,6 +68,11 @@ const teacherProfileSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Phase 19B — optional parallel translations of `bio`, additive only
+    // (same reasoning as Listing.description_si/description_ta).
+    bio_si: { type: String, maxlength: 1000 },
+    bio_ta: { type: String, maxlength: 1000 },
+
     // Free-text public summary — NOT the same as TeacherVerification's
     // qualificationDocuments (the actual uploaded proof files reviewed by an
     // admin). This is just what's shown on the profile page.

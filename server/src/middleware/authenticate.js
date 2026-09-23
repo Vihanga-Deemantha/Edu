@@ -1,5 +1,5 @@
-import jwt from "jsonwebtoken";
 import ApiError from "../utils/ApiError.js";
+import { verifyAccessToken } from "../utils/verifyAccessToken.js";
 
 /**
  * authenticate — verifies the JWT access token from the Authorization header.
@@ -16,8 +16,7 @@ const authenticate = (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-    req.user = { id: decoded.sub, role: decoded.role };
+    req.user = verifyAccessToken(token);
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {

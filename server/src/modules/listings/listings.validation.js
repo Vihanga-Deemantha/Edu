@@ -36,6 +36,14 @@ export const createListingValidation = [
   body("description")
     .trim()
     .isLength({ min: 10, max: 2000 }).withMessage("description must be between 10 and 2000 characters"),
+  body("description_si")
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ min: 10, max: 2000 }).withMessage("description_si must be between 10 and 2000 characters"),
+  body("description_ta")
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ min: 10, max: 2000 }).withMessage("description_ta must be between 10 and 2000 characters"),
   locationBodyValidator(),
   // Present only for a parent posting a student_ad on behalf of a linked child.
   body("targetUserId").optional().isMongoId().withMessage("targetUserId must be a valid id"),
@@ -61,6 +69,14 @@ export const updateListingValidation = [
     .optional()
     .trim()
     .isLength({ min: 10, max: 2000 }).withMessage("description must be between 10 and 2000 characters"),
+  body("description_si")
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ min: 10, max: 2000 }).withMessage("description_si must be between 10 and 2000 characters"),
+  body("description_ta")
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ min: 10, max: 2000 }).withMessage("description_ta must be between 10 and 2000 characters"),
   locationBodyValidator(),
   // "flagged" deliberately excluded — that's admin-only, via Phase 14's
   // dedicated moderation endpoint, not the owner-facing update route.
@@ -97,7 +113,16 @@ export const browseListingsValidation = [
       return true;
     }),
   query("radiusKm").optional().isFloat({ min: 0 }).withMessage("radiusKm must be a positive number"),
-  query("sort").optional().isIn(["price", "distance", "newest", "rating"]).withMessage("sort must be one of: price, distance, newest, rating"),
+  query("sort")
+    .optional()
+    .isIn(["price", "distance", "newest", "rating", "recommended"])
+    .withMessage("sort must be one of: price, distance, newest, rating, recommended"),
   query("page").optional().isInt({ min: 1 }).withMessage("page must be a positive integer"),
   query("limit").optional().isInt({ min: 1, max: 50 }).withMessage("limit must be between 1 and 50"),
+];
+
+export const priceSuggestionValidation = [
+  query("subject").optional().isString(),
+  query("grade").optional().isString(),
+  query("medium").optional().isIn(MEDIUM_VALUES).withMessage("medium must be one of: sinhala, tamil, english"),
 ];

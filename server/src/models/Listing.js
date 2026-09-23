@@ -73,6 +73,16 @@ const listingSchema = new mongoose.Schema(
       maxlength: 2000,
     },
 
+    // Phase 19B — optional parallel translations of `description`, not a
+    // replacement for it. `description` itself is unchanged: whatever
+    // language the teacher/student originally wrote it in stays the
+    // required, always-present field; these are purely additive, so no
+    // existing listing or API caller needs retrofitting. Same length bounds
+    // as `description` when present, since a translation shorter than a
+    // real sentence isn't meaningfully useful either.
+    description_si: { type: String, trim: true, minlength: 10, maxlength: 2000 },
+    description_ta: { type: String, trim: true, minlength: 10, maxlength: 2000 },
+
     location: {
       type: pointSchema,
       required: false,
@@ -84,6 +94,26 @@ const listingSchema = new mongoose.Schema(
       enum: ["active", "closed", "flagged"],
       default: "active",
     },
+
+    /**
+     * Phase 16 — a 384-dim embedding of this listing's searchable text
+     * (subject/grade/description, plus the owning teacher's bio for a
+     * teacher_ad), generated locally in listings.service.js on create/
+     * update (services/embedding.service.js). select: false, same as
+     * passwordHash — a large float array with no reason to ever appear in
+     * a normal API response. No regular Mongoose index here: the actual
+     * vector index is Atlas-Search-managed, created separately (see
+     * scripts/createVectorSearchIndex.js), not something Mongoose's
+     * schema-level .index() can express.
+     *
+     * default: undefined, not omitted — an Array-type schema path gets an
+     * implicit default: [] otherwise (the same class of bug fixed twice
+     * already this project, in geoSchema.js's pointSchema). An implicit []
+     * would make every listing "have" an embedding by search.service.js's
+     * embedding: { $exists: true } fallback filter, defeating the whole
+     * point of that check — genuinely absent must stay genuinely absent.
+     */
+    embedding: { type: [Number], select: false, default: undefined },
   },
   { timestamps: true }
 );

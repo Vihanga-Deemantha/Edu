@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
 import app from "../../../app.js";
+import TeacherProfile from "../../../models/TeacherProfile.js";
+import RankingConfig from "../../../models/RankingConfig.js";
 import { registerAndVerify } from "../../../test/helpers.js";
 
 // Colombo-ish coordinates, ~a few km apart, for geo tests.
@@ -188,6 +190,96 @@ describe("GET /api/listings/browse", () => {
 
   it("rejects an invalid medium filter", async () => {
     const res = await request(app).get("/api/listings/browse").query({ medium: "klingon" });
+    expect(res.status).toBe(422);
+  });
+
+  it("sorts by rating — higher avgRating first, a teacher with no profile at all sorts last instead of erroring", async () => {
+    const highRated = await registerAndVerify({ role: "teacher" });
+    await request(app)
+      .put("/api/profiles/teacher")
+      .set("Authorization", `Bearer ${highRated.accessToken}`)
+      .send({ subjects: ["Mathematics"], grades: ["Grade 10"], medium: ["english"], classType: ["online"] });
+    await createListing(highRated.accessToken, { subject: "RatingSortTest" });
+    // Phase 11B denormalizes this onto TeacherProfile on review write — set
+    // directly here since this test is about the sort/lookup mechanism, not
+    // re-exercising the review flow that's already covered elsewhere.
+    await TeacherProfile.findOneAndUpdate({ userId: highRated.userId }, { avgRating: 4.8, reviewCount: 10 });
+
+    const noProfile = await newTeacher(); // never built a TeacherProfile at all
+    await createListing(noProfile, { subject: "RatingSortTest" });
+
+    const res = await request(app)
+      .get("/api/listings/browse")
+      .query({ subject: "RatingSortTest", sort: "rating" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.listings).toHaveLength(2);
+    expect(res.body.data.listings[0].avgRating).toBe(4.8);
+    expect(res.body.data.listings[1].avgRating).toBe(0);
+  });
+
+  it("sorts by recommended using default weights when no RankingConfig exists yet — a fully verified teacher ranks above an unverified one", async () => {
+    const verified = await registerAndVerify({ role: "teacher" });
+    await request(app)
+      .put("/api/profiles/teacher")
+      .set("Authorization", `Bearer ${verified.accessToken}`)
+      .send({ subjects: ["Mathematics"], grades: ["Grade 10"], medium: ["english"], classType: ["online"] });
+    await TeacherProfile.findOneAndUpdate({ userId: verified.userId }, { verificationStatus: "fully_verified" });
+    const verifiedListing = await createListing(verified.accessToken, { subject: "RecommendedSortTest" });
+
+    const unverified = await newTeacher();
+    await createListing(unverified, { subject: "RecommendedSortTest" });
+
+    const res = await request(app)
+      .get("/api/listings/browse")
+      .query({ subject: "RecommendedSortTest", sort: "recommended" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.listings).toHaveLength(2);
+    expect(String(res.body.data.listings[0]._id)).toBe(String(verifiedListing._id));
+  });
+
+  it("applies learned weights from RankingConfig when one exists, overriding the defaults", async () => {
+    // Weighted entirely toward reviewCount — under the DEFAULT weights
+    // (verification: 40 > reviewCount: 20) the verified-but-unreviewed
+    // teacher would win; under these learned weights the heavily-reviewed
+    // one should instead.
+    await RankingConfig.create({
+      _id: "listing_ranking",
+      weights: { rating: 0, reviewCount: 100, verification: 0 },
+      trainedOnSamples: 500,
+      computedAt: new Date(),
+    });
+
+    const heavilyReviewed = await registerAndVerify({ role: "teacher" });
+    await request(app)
+      .put("/api/profiles/teacher")
+      .set("Authorization", `Bearer ${heavilyReviewed.accessToken}`)
+      .send({ subjects: ["Mathematics"], grades: ["Grade 10"], medium: ["english"], classType: ["online"] });
+    await TeacherProfile.findOneAndUpdate({ userId: heavilyReviewed.userId }, { reviewCount: 20, avgRating: 3 });
+    const heavilyReviewedListing = await createListing(heavilyReviewed.accessToken, { subject: "WeightOverrideTest" });
+
+    const verifiedFewReviews = await registerAndVerify({ role: "teacher" });
+    await request(app)
+      .put("/api/profiles/teacher")
+      .set("Authorization", `Bearer ${verifiedFewReviews.accessToken}`)
+      .send({ subjects: ["Mathematics"], grades: ["Grade 10"], medium: ["english"], classType: ["online"] });
+    await TeacherProfile.findOneAndUpdate(
+      { userId: verifiedFewReviews.userId },
+      { verificationStatus: "fully_verified", reviewCount: 0 }
+    );
+    await createListing(verifiedFewReviews.accessToken, { subject: "WeightOverrideTest" });
+
+    const res = await request(app)
+      .get("/api/listings/browse")
+      .query({ subject: "WeightOverrideTest", sort: "recommended" });
+
+    expect(res.body.data.listings).toHaveLength(2);
+    expect(String(res.body.data.listings[0]._id)).toBe(String(heavilyReviewedListing._id));
+  });
+
+  it("rejects an invalid sort value", async () => {
+    const res = await request(app).get("/api/listings/browse").query({ sort: "popularity" });
     expect(res.status).toBe(422);
   });
 });

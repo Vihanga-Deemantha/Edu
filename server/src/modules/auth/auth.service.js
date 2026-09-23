@@ -265,6 +265,15 @@ export const refreshTokens = async (rawRefreshToken, userAgent) => {
   if (!user) {
     throw new ApiError(401, "User not found", "USER_NOT_FOUND");
   }
+  // Without this, a user suspended (Phase 14) after already logging in
+  // could keep refreshing this same session for up to the refresh token's
+  // full lifetime (7 days by default) — isActive alone, checked only at
+  // login, would block a NEW login but not an already-issued session from
+  // renewing. suspendUser also revokes every RefreshToken immediately, so
+  // this is defense in depth, not the only thing making suspension work.
+  if (!user.isActive) {
+    throw new ApiError(403, "Account has been suspended", "ACCOUNT_SUSPENDED");
+  }
 
   const { accessToken, refreshToken } = await issueTokens(user, userAgent ?? claimed.userAgent);
 

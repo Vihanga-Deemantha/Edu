@@ -1,9 +1,10 @@
 import Listing from "../../models/Listing.js";
 import TeacherProfile from "../../models/TeacherProfile.js";
 import StudentProfile from "../../models/StudentProfile.js";
-import User from "../../models/User.js";
+import RankingConfig from "../../models/RankingConfig.js";
 import ApiError from "../../utils/ApiError.js";
-import { isRequesterParentOf } from "../../utils/familyAccess.js";
+import { isRequesterParentOf, resolveOwnedUserIds } from "../../utils/familyAccess.js";
+import { embedPassage } from "../../services/embedding.service.js";
 
 /**
  * The single predicate both visibility checks below are built from: is this
@@ -103,16 +104,71 @@ const normalizePrice = (price) => {
   return { ...price, currency: price.currency || "LKR" };
 };
 
+/**
+ * Phase 16 — the text a listing's embedding is generated from. For a
+ * teacher_ad, folds in the owning teacher's bio too: this is how "embed
+ * teacher bios and listing descriptions" (the roadmap's own framing) is
+ * satisfied without a second, currently-unused embedding field and search
+ * path on TeacherProfile — the bio's content enriches the one thing that
+ * actually gets searched. Exported so scripts/backfillListingEmbeddings.js
+ * builds embeddings from exactly this same text, not a second copy of the
+ * same logic that could quietly drift from it.
+ */
+export const embeddingSourceText = async (listing) => {
+  const parts = [listing.subject, listing.grade, listing.description];
+  // Phase 19B — fold in whichever translations exist. The embedding model
+  // is multilingual (verified live during Phase 16: a Sinhala sentence
+  // already embeds close to its English translation), so this isn't what
+  // makes cross-language matching *possible* — that already works from the
+  // base description alone. It's what makes it *precise*: literal
+  // same-language text against a same-language query embeds more sharply
+  // than relying purely on the model's cross-lingual transfer, so a
+  // Sinhala search benefits from real Sinhala text being in here when a
+  // teacher provided it, on top of the cross-lingual fallback still
+  // covering listings that only ever got the one base description.
+  if (listing.description_si) parts.push(listing.description_si);
+  if (listing.description_ta) parts.push(listing.description_ta);
+  if (listing.type === "teacher_ad") {
+    const profile = await TeacherProfile.findOne({ userId: listing.ownerId }).select("bio bio_si bio_ta");
+    if (profile?.bio) parts.push(profile.bio);
+    if (profile?.bio_si) parts.push(profile.bio_si);
+    if (profile?.bio_ta) parts.push(profile.bio_ta);
+  }
+  return parts.join(". ");
+};
+
+/**
+ * Best-effort, not fatal — swallowed and logged, matching Event/
+ * Notification's tolerance for a non-core side effect. A listing that
+ * fails to get an embedding still works everywhere else (regular browse,
+ * sort=rating, sort=recommended); it just won't surface in semantic search
+ * until this succeeds on a later update. Awaited (not fire-and-forget)
+ * regardless — the model is warmed at server startup, so in practice this
+ * adds negligible latency, and awaiting keeps "listing creation finished"
+ * a simple true statement rather than a background promise nobody tracks.
+ */
+const generateAndStoreEmbedding = async (listing) => {
+  try {
+    listing.embedding = await embedPassage(await embeddingSourceText(listing));
+    await listing.save();
+  } catch (err) {
+    console.error("Embedding generation failed (non-fatal):", err.message);
+  }
+};
+
 export const createListing = async ({ requesterId, requesterRole, targetUserId, location, price, ...fields }) => {
   const ownerId = await resolveOwnerId({ type: fields.type, requesterId, requesterRole, targetUserId });
   const resolvedLocation = await denormalizeLocation(fields.type, ownerId, location);
 
-  return Listing.create({
+  const listing = await Listing.create({
     ...fields,
     ownerId,
     location: resolvedLocation,
     price: normalizePrice(price),
   });
+
+  await generateAndStoreEmbedding(listing);
+  return listing;
 };
 
 /**
@@ -156,13 +212,7 @@ export const getListingById = async (listingId, requester) => {
  * and edit in the first place.
  */
 export const getMyListings = async (requesterId, requesterRole) => {
-  const ownerIds = [requesterId];
-  if (requesterRole === "parent") {
-    const parent = await User.findById(requesterId);
-    for (const childId of parent?.linkedChildIds || []) {
-      ownerIds.push(String(childId));
-    }
-  }
+  const ownerIds = await resolveOwnedUserIds(requesterId, requesterRole);
   return Listing.find({ ownerId: { $in: ownerIds } }).sort({ createdAt: -1 });
 };
 
@@ -185,6 +235,15 @@ export const updateListing = async ({ listingId, requesterId, requesterRole, upd
   // current state, touched fields or not — no upsert ambiguity to create,
   // since this document is already loaded and known to exist.
   await listing.save();
+
+  // Only regenerated when the text it's derived from actually changed —
+  // an update that only touches price/schedule/status has nothing new for
+  // semantic search to learn, so there's no reason to pay for a fresh
+  // embedding call.
+  if (["subject", "grade", "description", "description_si", "description_ta"].some((field) => field in rest)) {
+    await generateAndStoreEmbedding(listing);
+  }
+
   return listing;
 };
 
@@ -214,41 +273,121 @@ const caseInsensitiveExact = (value) => new RegExp(`^${escapeRegex(value)}$`, "i
 const NON_GEO_SORTS = {
   price: { "price.amount": 1 },
   newest: { createdAt: -1 },
-  // "rating" has nowhere to read from yet — avgRating lives on TeacherProfile,
-  // not Listing, and nothing has denormalized or joined it here. Falls back
-  // to newest until Phase 11B lands and this gets revisited (either
-  // denormalize avgRating onto Listing, or add a $lookup here).
-  rating: { createdAt: -1 },
+  rating: { avgRating: -1, createdAt: -1 },
 };
 
 const GEO_SORTS = {
   price: { "price.amount": 1 },
   distance: { distanceMeters: 1 },
   newest: { createdAt: -1 },
-  rating: { distanceMeters: 1 }, // same caveat as NON_GEO_SORTS.rating
+  rating: { avgRating: -1, distanceMeters: 1 },
 };
+
+/**
+ * $lookup-joins TeacherProfile.avgRating/reviewCount/verificationStatus onto
+ * each listing by ownerId — Phase 11B denormalizes avgRating onto
+ * TeacherProfile specifically so this can read a cached value instead of
+ * aggregating Review on every search request. A student_ad (no
+ * TeacherProfile at all) or a teacher who hasn't built a profile yet both
+ * fall back to 0/"none" rather than being excluded — they still show up in
+ * results, just sorted last. Only spliced into the pipeline when
+ * sort=rating or sort=recommended is actually requested (both need it);
+ * every other sort stays on the cheaper lookup-free path below.
+ */
+const ratingLookupStages = () => [
+  {
+    $lookup: {
+      from: TeacherProfile.collection.name,
+      localField: "ownerId",
+      foreignField: "userId",
+      as: "_teacherProfile",
+    },
+  },
+  {
+    $addFields: {
+      avgRating: { $ifNull: [{ $arrayElemAt: ["$_teacherProfile.avgRating", 0] }, 0] },
+      reviewCount: { $ifNull: [{ $arrayElemAt: ["$_teacherProfile.reviewCount", 0] }, 0] },
+      verificationStatus: { $ifNull: [{ $arrayElemAt: ["$_teacherProfile.verificationStatus", 0] }, "none"] },
+    },
+  },
+  { $project: { _teacherProfile: 0 } },
+];
+
+// ─── Phase 12: learning-to-rank blend ("sort=recommended") ──────────────────
+
+const RATING_SCALE_MAX = 5; // avgRating is stored 0-5
+const REVIEW_COUNT_SATURATION = 20; // reviewCount treated as "maximally trusted" at this many or more
+
+// Used until ml-jobs/'s offline LightGBM job has written a real
+// RankingConfig (never run yet, or the collection was cleared) — a
+// reasonable static default so sort=recommended behaves sensibly, not
+// brokenly, before Phase 12's learned weights exist.
+const DEFAULT_RANKING_WEIGHTS = { rating: 40, reviewCount: 20, verification: 40 };
+
+const getRankingWeights = async () => {
+  const config = await RankingConfig.findById("listing_ranking");
+  return config?.weights || DEFAULT_RANKING_WEIGHTS;
+};
+
+/**
+ * Computes a single blended `learnedScore` field from the rating/
+ * reviewCount/verificationStatus fields ratingLookupStages() above already
+ * added — the weights come from Python's offline LightGBM ranking run
+ * (feature importances, normalized to this same three-field shape) rather
+ * than being hand-tuned here. Distance isn't part of this blend; a geo
+ * search keeps using $geoNear's distanceMeters as the sort tiebreak, same
+ * as every other sort option.
+ */
+const learnedScoreStage = (weights) => ({
+  $addFields: {
+    learnedScore: {
+      $add: [
+        { $multiply: [{ $divide: ["$avgRating", RATING_SCALE_MAX] }, weights.rating] },
+        { $multiply: [{ $min: [{ $divide: ["$reviewCount", REVIEW_COUNT_SATURATION] }, 1] }, weights.reviewCount] },
+        {
+          $multiply: [
+            {
+              $switch: {
+                branches: [
+                  { case: { $eq: ["$verificationStatus", "fully_verified"] }, then: 1 },
+                  { case: { $eq: ["$verificationStatus", "id_verified"] }, then: 0.5 },
+                ],
+                default: 0,
+              },
+            },
+            weights.verification,
+          ],
+        },
+      ],
+    },
+  },
+});
 
 /**
  * Public listing search — the query-string-driven version of
  * publicVisibilityQueryFilter above, plus subject/grade/medium/curriculum/
  * price filters and an optional geospatial "near me" search.
  *
- * $geoNear (when lat/lng are given) must be the pipeline's first stage, so
- * geo and non-geo search run through genuinely different query shapes
- * rather than trying to force one code path to cover both — a plain
- * `.find()` for the common non-geo case, an aggregation pipeline only when
- * a geo search is actually being done.
+ * Sort-relevant concerns compose independently: geo (changes the pipeline's
+ * leading stage — $geoNear must run first — and adds distanceMeters),
+ * rating/recommended (both need the $lookup spliced in before sorting;
+ * recommended additionally computes a learnedScore field from Phase 12's
+ * weights), and everything else (plain field sort). Any of geo/rating/
+ * recommended pushes this onto the aggregation path; a plain `.find()`
+ * covers the common case where none apply, without paying for a $lookup or
+ * $geoNear it doesn't need.
  */
-export const browseListings = async (requester, query) => {
-  const {
-    subject, grade, medium, curriculum,
-    minPrice, maxPrice,
-    lat, lng, radiusKm,
-    sort = "newest",
-    page = 1,
-    limit = 20,
-  } = query;
-
+/**
+ * The hard-constraint filter shared by plain browse (Phase 6B) and
+ * semantic search (Phase 16, search.service.js) — visibility rules plus
+ * subject/grade/medium/curriculum/price. Exported so semantic search
+ * combines the SAME structured constraints with its embedding-based
+ * ranking rather than re-deriving (and risking drifting from) this logic a
+ * second time — "don't let the embedding guess at things the user already
+ * told you precisely" only holds if both search paths agree on what
+ * "precisely" means.
+ */
+export const buildListingStructuredFilter = (requester, { subject, grade, medium, curriculum, minPrice, maxPrice } = {}) => {
   const filter = { ...publicVisibilityQueryFilter(requester) };
 
   if (subject) filter.subject = caseInsensitiveExact(subject);
@@ -262,30 +401,53 @@ export const browseListings = async (requester, query) => {
     if (maxPrice !== undefined) filter["price.amount"].$lte = Number(maxPrice);
   }
 
+  return filter;
+};
+
+export const browseListings = async (requester, query) => {
+  const { lat, lng, radiusKm, sort = "newest", page = 1, limit = 20 } = query;
+
+  const filter = buildListingStructuredFilter(requester, query);
+
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
   const skip = (pageNum - 1) * limitNum;
 
   const hasGeo = lat !== undefined && lng !== undefined;
+  const needsRecommended = sort === "recommended";
+  const needsRatingLookup = sort === "rating" || needsRecommended;
 
-  if (hasGeo) {
-    const geoStage = {
-      $geoNear: {
-        near: { type: "Point", coordinates: [Number(lng), Number(lat)] },
-        distanceField: "distanceMeters",
-        spherical: true,
-        query: filter,
-        ...(radiusKm !== undefined ? { maxDistance: Number(radiusKm) * 1000 } : {}),
-      },
-    };
-    const sortStage = GEO_SORTS[sort] || GEO_SORTS.newest;
+  if (hasGeo || needsRatingLookup) {
+    const leadingStage = hasGeo
+      ? {
+          $geoNear: {
+            near: { type: "Point", coordinates: [Number(lng), Number(lat)] },
+            distanceField: "distanceMeters",
+            spherical: true,
+            query: filter,
+            ...(radiusKm !== undefined ? { maxDistance: Number(radiusKm) * 1000 } : {}),
+          },
+        }
+      : { $match: filter };
 
-    // A single $geoNear feeding two $facet branches — the geospatial index
-    // scan + distance computation runs once and is reused for both the data
-    // page and the count, instead of two separate aggregate() calls each
-    // re-running $geoNear from scratch for the same request.
+    let sortStage;
+    let scoringStages = [];
+    if (needsRecommended) {
+      const weights = await getRankingWeights();
+      scoringStages = [learnedScoreStage(weights)];
+      sortStage = { learnedScore: -1, ...(hasGeo ? { distanceMeters: 1 } : { createdAt: -1 }) };
+    } else {
+      sortStage = hasGeo ? GEO_SORTS[sort] || GEO_SORTS.newest : NON_GEO_SORTS[sort] || NON_GEO_SORTS.newest;
+    }
+
+    // A single leading stage (geoNear or match) feeding two $facet branches
+    // — the expensive part (geo index scan and/or the rating $lookup) runs
+    // once and is reused for both the data page and the count, instead of
+    // running it twice across two separate aggregate() calls.
     const [result] = await Listing.aggregate([
-      geoStage,
+      leadingStage,
+      ...(needsRatingLookup ? ratingLookupStages() : []),
+      ...scoringStages,
       {
         $facet: {
           data: [{ $sort: sortStage }, { $skip: skip }, { $limit: limitNum }],
@@ -310,5 +472,36 @@ export const browseListings = async (requester, query) => {
   return {
     listings,
     pagination: { page: pageNum, limit: limitNum, total },
+  };
+};
+
+// ─── Phase 16: teacher-facing pricing assistant ─────────────────────────────
+
+const MIN_SAMPLES_FOR_SUGGESTION = 3; // below this, a percentile is more misleading than useful
+
+/**
+ * A percentile read of what teachers currently charge for a subject/grade/
+ * medium — not ML, just a distribution query, but genuinely useful for a
+ * teacher pricing a new ad and cheap to add since browseListings already
+ * queries this same data shape.
+ */
+export const getPriceSuggestion = async ({ subject, grade, medium }) => {
+  const filter = { type: "teacher_ad", status: "active", "price.amount": { $exists: true } };
+  if (subject) filter.subject = caseInsensitiveExact(subject);
+  if (grade) filter.grade = caseInsensitiveExact(grade);
+  if (medium) filter.medium = medium;
+
+  const listings = await Listing.find(filter).select("price.amount");
+  const amounts = listings.map((l) => l.price.amount).sort((a, b) => a - b);
+
+  if (amounts.length < MIN_SAMPLES_FOR_SUGGESTION) {
+    return { sampleSize: amounts.length, suggestion: null };
+  }
+
+  const percentile = (p) => amounts[Math.min(amounts.length - 1, Math.floor((p / 100) * amounts.length))];
+
+  return {
+    sampleSize: amounts.length,
+    suggestion: { p25: percentile(25), median: percentile(50), p75: percentile(75) },
   };
 };
