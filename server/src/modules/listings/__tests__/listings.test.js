@@ -382,3 +382,117 @@ describe("DELETE /api/listings/:id (soft close)", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("GET /api/listings/price-suggestion", () => {
+  it("returns percentile bands once there are enough samples", async () => {
+    const { accessToken } = await registerAndVerify({ role: "teacher" });
+    for (const amount of [1000, 1500, 2000, 2500, 3000]) {
+      await request(app)
+        .post("/api/listings")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ ...validTeacherAd(), subject: "PriceSuggestionTest", price: { amount, unit: "hour" } });
+    }
+
+    const res = await request(app)
+      .get("/api/listings/price-suggestion")
+      .query({ subject: "PriceSuggestionTest" })
+      .set("Authorization", `Bearer ${accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.sampleSize).toBe(5);
+    expect(res.body.data.suggestion.p25).toBeLessThanOrEqual(res.body.data.suggestion.median);
+    expect(res.body.data.suggestion.median).toBeLessThanOrEqual(res.body.data.suggestion.p75);
+  });
+
+  it("returns a null suggestion when there are too few samples, rather than a misleading percentile", async () => {
+    const { accessToken } = await registerAndVerify({ role: "teacher" });
+    await request(app)
+      .post("/api/listings")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ ...validTeacherAd(), subject: "TooFewSamplesTest", price: { amount: 1000, unit: "hour" } });
+
+    const res = await request(app)
+      .get("/api/listings/price-suggestion")
+      .query({ subject: "TooFewSamplesTest" })
+      .set("Authorization", `Bearer ${accessToken}`);
+
+    expect(res.body.data.sampleSize).toBe(1);
+    expect(res.body.data.suggestion).toBeNull();
+  });
+
+  it("rejects a non-teacher caller", async () => {
+    const { accessToken } = await registerAndVerify({ role: "student" });
+
+    const res = await request(app)
+      .get("/api/listings/price-suggestion")
+      .set("Authorization", `Bearer ${accessToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects a request with no token", async () => {
+    const res = await request(app).get("/api/listings/price-suggestion");
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("Phase 19B — translated content fields", () => {
+  it("creates a listing with description_si and description_ta and returns them", async () => {
+    const { accessToken } = await registerAndVerify({ role: "teacher" });
+
+    const res = await request(app)
+      .post("/api/listings")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        ...validTeacherAd(),
+        subject: "TranslatedFieldsTest",
+        description_si: "Sinhala placeholder description text goes here.",
+        description_ta: "Tamil placeholder description text goes here.",
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.listing.description_si).toBe("Sinhala placeholder description text goes here.");
+    expect(res.body.data.listing.description_ta).toBe("Tamil placeholder description text goes here.");
+  });
+
+  it("rejects a description_si shorter than the minimum length", async () => {
+    const { accessToken } = await registerAndVerify({ role: "teacher" });
+
+    const res = await request(app)
+      .post("/api/listings")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ ...validTeacherAd(), description_si: "short" });
+
+    expect(res.status).toBe(422);
+  });
+
+  it("leaves translated fields genuinely absent (not empty strings) when never provided", async () => {
+    const { accessToken } = await registerAndVerify({ role: "teacher" });
+
+    const res = await request(app)
+      .post("/api/listings")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send(validTeacherAd());
+
+    expect(res.body.data.listing.description_si).toBeUndefined();
+    expect(res.body.data.listing.description_ta).toBeUndefined();
+  });
+
+  it("updating only description_ta still regenerates the embedding", async () => {
+    const Listing = (await import("../../../models/Listing.js")).default;
+    const { accessToken } = await registerAndVerify({ role: "teacher" });
+    const createRes = await request(app)
+      .post("/api/listings")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ ...validTeacherAd(), subject: "EmbeddingRegenTranslationTest" });
+    const before = await Listing.findById(createRes.body.data.listing._id).select("+embedding");
+
+    await request(app)
+      .patch(`/api/listings/${createRes.body.data.listing._id}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ description_ta: "Brand new Tamil placeholder text for this same listing." });
+
+    const after = await Listing.findById(createRes.body.data.listing._id).select("+embedding");
+    expect(after.embedding).not.toEqual(before.embedding);
+  });
+});

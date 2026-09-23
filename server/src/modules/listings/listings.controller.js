@@ -88,3 +88,13 @@ export const closeListing = async (req, res, next) => {
     next(err);
   }
 };
+
+// ─── GET /api/listings/price-suggestion  (protected: teacher) ───────────────
+export const getPriceSuggestion = async (req, res, next) => {
+  try {
+    const result = await listingsService.getPriceSuggestion(req.query);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};

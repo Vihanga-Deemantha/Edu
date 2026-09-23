@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import { verifyAccessToken } from "../utils/verifyAccessToken.js";
 
 /**
  * Like authenticate.js, but never rejects the request — attaches req.user
@@ -17,8 +17,7 @@ const optionalAuthenticate = (req, res, next) => {
 
   const token = authHeader.split(" ")[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-    req.user = { id: decoded.sub, role: decoded.role };
+    req.user = verifyAccessToken(token);
   } catch {
     // Invalid/expired token on an optional-auth route — treat as a guest
     // rather than failing a request that doesn't require auth at all.

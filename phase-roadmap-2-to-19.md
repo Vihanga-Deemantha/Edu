@@ -48,17 +48,19 @@ Every backend phase ships before any frontend phase starts. This works cleanly h
 | 2 | Phase 4 — Listings Backend | ✅ Done |
 | 3 | Phase 6B — Browse & Search Backend | ✅ Done |
 | 4 | Phase 7 — Event Logging & Analytics Foundation | ✅ Done |
-| 5 | Phase 8 — AI/ML v1: Content-Based Recommendations | Up next |
-| 6 | Phase 9 — Notifications Backend | |
-| 7 | Phase 10B — Interest & Contact Request Backend | |
-| 8 | Phase 11B — Ratings & Reviews Backend | |
-| 9 | Phase 12 — AI/ML v2: Collaborative Filtering & Ranking | |
-| 10 | Phase 13B — In-App Chat Backend | |
-| 11 | Phase 14 — Admin Backend | |
-| 12 | Phase 16 — AI/ML v3: Semantic Search & Assistant | |
-| 13 | Phase 17B — Booking Backend | |
-| 14 | Phase 18B — Payments Backend | |
-| 15 | Phase 19B — Multi-language content fields | |
+| 5 | Phase 8 — AI/ML v1: Content-Based Recommendations | ✅ Done |
+| 6 | Phase 9 — Notifications Backend | ✅ Done |
+| 7 | Phase 10B — Interest & Contact Request Backend | ✅ Done |
+| 8 | Phase 11B — Ratings & Reviews Backend | ✅ Done |
+| 9 | Phase 12 — AI/ML v2: Collaborative Filtering & Ranking | ✅ Done |
+| 10 | Phase 13B — In-App Chat Backend | ✅ Done |
+| 11 | Phase 14 — Admin Backend | ✅ Done |
+| 12 | Phase 16 — AI/ML v3: Semantic Search & Assistant | ✅ Done |
+| 13 | Phase 17B — Booking Backend | ✅ Done |
+| 14 | Phase 18B — Payments Backend | ✅ Done |
+| 15 | Phase 19B — Multi-language content fields | ✅ Done |
+
+**Backend track complete.** Every phase above shipped with full test coverage — the frontend track (below) starts next.
 
 **Frontend track — build after every backend phase above is done:**
 
@@ -77,10 +79,46 @@ Every backend phase ships before any frontend phase starts. This works cleanly h
 | 11 | Phase 19F — Multi-Language UI (i18next) | 19B |
 
 **Four backend phases have a real external dependency, not just code** — worth a quick check-in when I actually reach them rather than guessing unilaterally:
-- **Phase 9** assumes Redis + BullMQ. If that's not available yet, a DB-polled job queue is a fine substitute until it is.
-- **Phase 12** introduces a separate Python service alongside the Node monolith — worth confirming that split is wanted now rather than keeping ML in Node longer.
-- **Phase 16** needs an embeddings API (or a self-hosted model) and specifically MongoDB Atlas Vector Search, not just any Mongo deployment.
-- **Phase 18** needs real PayHere/WebXPay merchant credentials — there's nothing to integrate against without them.
+- ~~**Phase 9** assumes Redis + BullMQ.~~ **Resolved** — Redis is running locally via Docker (`edulink-redis` container, `REDIS_URL` wired in `.env`/`.env.example`); the worker runs as its own process (`npm run worker`).
+- ~~**Phase 12** introduces a separate Python service alongside the Node monolith.~~ **Resolved, lighter than planned** — `ml-jobs/` is a plain Python *script* (`python run.py`), not a FastAPI service: no server, no port, nothing to keep running. It reads/writes MongoDB directly and is meant to be cron/Task-Scheduler-invoked; Node never calls it.
+- ~~**Phase 16** needs an embeddings API...~~ **Resolved** — self-hosted, in-process (`@huggingface/transformers`); see the resolved note below.
+- ~~**Phase 18** needs real PayHere/WebXPay merchant credentials...~~ **Resolved, different gateway** — Stripe sandbox instead; see the resolved note below.
+
+---
+
+## Remaining Work — Reminders
+
+Quick-glance checklist of what's actually left to finish this roadmap. Kept in sync with the status tables above as phases land — update both when a phase completes.
+
+**Backend — all phases done.** The entire backend track (Phases 2 through 19B) is built and tested:
+- [x] Phase 17B — Trial-Class Booking Backend
+- [x] Phase 18B — Payments Backend (Stripe, not PayHere/WebXPay — see the resolved note below)
+- [x] Phase 19B — Multi-language content fields
+
+**Frontend — all 11 phases still unbuilt**, deliberately deferred until every backend phase above is done (per the backend-first build order — nothing here has started, not even Phase 3):
+- [ ] Phase 3 — Profiles Frontend
+- [ ] Phase 5 — Listings Frontend
+- [ ] Phase 6F — Browse & Search Frontend
+- [ ] Phase 9F — In-App Notification UI
+- [ ] Phase 10F — Interest & Contact Frontend
+- [ ] Phase 11F — Ratings & Reviews Frontend
+- [ ] Phase 13F — Chat Frontend
+- [ ] Phase 15 — Admin Frontend & Analytics Dashboard
+- [ ] Phase 17F — Booking Frontend
+- [ ] Phase 18F — Payments Frontend
+- [ ] Phase 19F — Multi-Language UI (i18next)
+
+**External/infra decisions still open** — surface these again when the phase is actually reached, don't guess unilaterally:
+- None remaining — Phase 18's PayHere/WebXPay credential blocker was superseded by the Stripe pivot below, and Phase 19B needs no new infrastructure.
+
+**Resolved — Phase 16**: self-hosted embeddings (`@huggingface/transformers`, `Xenova/multilingual-e5-small`, runs in Node — no Python, no external API, verified live for real multilingual quality). MongoDB Atlas Vector Search needs its index created on the user's own cluster (`node src/scripts/createVectorSearchIndex.js`) before it's actually active; semantic search works correctly without it too, via an automatic in-memory fallback.
+
+**Resolved — Phase 17B**: `TeacherAvailability` is a recurring *weekly* window (`dayOfWeek` 0-6 + `startTime`/`endTime` as `HH:mm`), not one-off open slots — matches how a tutor actually describes their schedule ("Mondays 4-6pm"). A `Booking` auto-confirms on creation rather than needing a separate propose/accept round-trip: picking a slot the teacher already published as available *is* the confirmation, and either side of the underlying accepted `InterestRequest` can create/cancel/complete it. Conflict-checking is a standard interval-overlap test against other `confirmed` bookings only (a cancelled one frees its slot back up).
+
+**Resolved — Phase 18B**: **Stripe** (test/sandbox mode), not PayHere/WebXPay as originally scoped — the user's own call, and a practical one: Stripe's test-mode API keys are self-serve (no merchant/business registration needed to prototype against, unlike PayHere/WebXPay's sandbox onboarding), while Sri Lanka isn't a Stripe-supported account *country* for actually going live later. That constraint shaped the design: the deposit is a small **fixed USD fee** (`TRIAL_DEPOSIT_AMOUNT_CENTS`, default $10), not a converted cut of the listing's own LKR price — a flat reservation fee, deliberately not a currency conversion. Integration uses Stripe **Checkout Sessions** (Stripe-hosted payment page, backend creates a session and returns its URL) rather than PaymentIntents + Stripe Elements, since there's no frontend yet to embed Elements into — matches every other phase's "backend-complete, verified without a UI" shape. Webhook handling (`POST /api/payments/webhook`) needs real signature verification, which needs the exact raw request bytes Stripe signed — mounted in `app.js` with `express.raw()` *before* the global `express.json()`, the standard Express+Stripe pattern, since JSON-parsing-then-restringifying would never byte-for-byte match what was actually signed.
+**Still needed from the user**: real Stripe sandbox keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) in `server/.env` for any live testing — nothing in this repo can generate those. Locally, forwarding Stripe's real webhook calls to `localhost` needs the Stripe CLI (`stripe listen --forward-to localhost:5067/api/payments/webhook`), since Stripe's servers can't reach a dev machine directly; that command also prints the `whsec_...` value `STRIPE_WEBHOOK_SECRET` should be set to for local testing (a live deployment instead uses the secret shown when a webhook endpoint is registered in the Stripe Dashboard).
+
+**Resolved — Phase 19B**: added `description_si`/`description_ta` to `Listing` and `bio_si`/`bio_ta` to `TeacherProfile` — optional fields, purely additive alongside the existing required `description`/`bio` (no retrofitting of existing data or callers). `StudentProfile` deliberately untouched — it has no free-text field comparable to `bio`/`description`, and a `student_ad` already gets translated fields through the same `Listing` schema `teacher_ad` uses. The one real design decision: whether Phase 16's semantic search should actually *use* these once they exist. It does — `listings.service.js`'s `embeddingSourceText` folds in whichever translations are present (listing's own + the owning teacher's `bio_si`/`bio_ta` for a `teacher_ad`) rather than treating them as display-only metadata, and `updateListing`'s regenerate-on-change check now includes `description_si`/`description_ta`. This doesn't make cross-language search *possible* — the multilingual embedding model already handles that on the base `description` alone, verified live back in Phase 16 — it makes it *more precise*: real same-language text embeds more sharply against a same-language query than relying purely on the model's cross-lingual transfer. 19F (i18next, language switcher, actually rendering the right field per viewer) is deferred to the frontend track like every other `F` phase.
 
 ---
 

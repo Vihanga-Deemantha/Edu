@@ -48,6 +48,14 @@ export const upsertTeacherProfileValidation = [
     .custom((arr) => arr.every((v) => CURRICULUM_VALUES.includes(v)))
     .withMessage("curriculum must only contain: local, cambridge, edexcel"),
   body("bio").optional().isString().isLength({ max: 1000 }).withMessage("bio must be at most 1000 characters"),
+  body("bio_si")
+    .optional({ nullable: true })
+    .isString()
+    .isLength({ max: 1000 }).withMessage("bio_si must be at most 1000 characters"),
+  body("bio_ta")
+    .optional({ nullable: true })
+    .isString()
+    .isLength({ max: 1000 }).withMessage("bio_ta must be at most 1000 characters"),
   body("qualifications").optional().isArray().withMessage("qualifications must be an array"),
   body("experienceYears").optional().isInt({ min: 0 }).withMessage("experienceYears must be a non-negative integer"),
   body("photoUrl").optional({ nullable: true }).isString(),

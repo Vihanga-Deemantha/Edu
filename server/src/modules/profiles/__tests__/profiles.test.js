@@ -58,6 +58,30 @@ describe("PUT /api/profiles/teacher", () => {
     expect(res.body.data.profile.subjects).toEqual(["Mathematics", "Physics"]);
   });
 
+  it("accepts bio_si and bio_ta as optional translated fields (Phase 19B)", async () => {
+    const { accessToken } = await registerAndVerify({ role: "teacher" });
+
+    const res = await request(app)
+      .put("/api/profiles/teacher")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ ...validTeacherProfile(), bio_si: "Sinhala placeholder bio.", bio_ta: "Tamil placeholder bio." });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.profile.bio_si).toBe("Sinhala placeholder bio.");
+    expect(res.body.data.profile.bio_ta).toBe("Tamil placeholder bio.");
+  });
+
+  it("rejects a bio_si longer than 1000 characters", async () => {
+    const { accessToken } = await registerAndVerify({ role: "teacher" });
+
+    const res = await request(app)
+      .put("/api/profiles/teacher")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ ...validTeacherProfile(), bio_si: "a".repeat(1001) });
+
+    expect(res.status).toBe(422);
+  });
+
   it("silently strips verificationStatus/avgRating/reviewCount even if somehow present", async () => {
     const { userId } = await registerAndVerify({ role: "teacher" });
 

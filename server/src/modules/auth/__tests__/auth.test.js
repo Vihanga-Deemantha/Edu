@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import request from "supertest";
 import app from "../../../app.js";
 import { __testOtpCapture } from "../../../services/otp.service.js";
+import User from "../../../models/User.js";
 import { uniquePhone, baseUser, registerAndVerify, login } from "../../../test/helpers.js";
 
 const baseTeacher = () => baseUser("teacher");
@@ -179,6 +180,23 @@ describe("refresh token rotation and reuse detection", () => {
 
     expect(refreshAfterLogoutA.status).toBe(401);
     expect(refreshB.status).toBe(200);
+  });
+
+  it("rejects a refresh for an account whose isActive flips to false mid-session", async () => {
+    const { payload, userId } = await registerAndVerify();
+    const { cookie } = await login(payload);
+
+    // Phase 14's suspendUser also hard-deletes the RefreshToken outright,
+    // which would make refresh 401 for an unrelated reason (no record at
+    // all) before this check ever ran — flipping isActive directly here,
+    // leaving the token on record, is what actually exercises this
+    // specific guard in refreshTokens.
+    await User.findByIdAndUpdate(userId, { isActive: false });
+
+    const res = await request(app).post("/api/auth/refresh").set("Cookie", cookie);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("ACCOUNT_SUSPENDED");
   });
 });
 

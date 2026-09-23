@@ -5,6 +5,7 @@ import {
   updateListingValidation,
   listingIdParamValidation,
   browseListingsValidation,
+  priceSuggestionValidation,
 } from "./listings.validation.js";
 import authenticate from "../../middleware/authenticate.js";
 import optionalAuthenticate from "../../middleware/optionalAuthenticate.js";
@@ -47,6 +48,19 @@ router.get(
   browseListingsValidation,
   validate,
   listingsController.browseListings
+);
+
+/**
+ * GET /api/listings/price-suggestion
+ * Protected: teacher only. Must also be registered before GET /:id.
+ */
+router.get(
+  "/price-suggestion",
+  authenticate,
+  authorize("teacher"),
+  priceSuggestionValidation,
+  validate,
+  listingsController.getPriceSuggestion
 );
 
 /**
