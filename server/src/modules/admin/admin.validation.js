@@ -24,6 +24,11 @@ export const reviewVerificationValidation = [
 
 export const suspendUserValidation = [param("userId").isMongoId().withMessage("Invalid userId"), adminNotesValidator()];
 
+export const unsuspendUserValidation = [
+  param("userId").isMongoId().withMessage("Invalid userId"),
+  adminNotesValidator(),
+];
+
 export const moderateListingValidation = [
   param("id").isMongoId().withMessage("Invalid listing id"),
   body("status")

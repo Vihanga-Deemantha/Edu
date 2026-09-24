@@ -6,6 +6,7 @@ import RefreshToken from "../../models/RefreshToken.js";
 import AuditLog from "../../models/AuditLog.js";
 import ApiError from "../../utils/ApiError.js";
 import { syncTeacherVerificationStatus } from "../profiles/profiles.service.js";
+import { userEvents, USER_SUSPENDED } from "../../events/userEvents.js";
 
 /**
  * Awaited at every call site below, unlike Event/Notification's
@@ -69,7 +70,30 @@ export const suspendUser = async ({ adminId, userId, adminNotes }) => {
   // token's full lifetime (7 days by default) after being suspended.
   await RefreshToken.deleteMany({ userId });
 
+  // REST sessions are now cut off (above), but a socket connection isn't a
+  // request — it isn't re-authenticated after its initial handshake, so
+  // without this it would keep working indefinitely, undercutting
+  // "immediate session revocation." sockets/chatSocket.js subscribes to
+  // this and disconnects every live socket for this user; admin.service.js
+  // deliberately has no direct Socket.io dependency of its own.
+  userEvents.emit(USER_SUSPENDED, String(userId));
+
   await writeAuditLog(adminId, "user_suspended", "user", user._id, { adminNotes: adminNotes || null });
+
+  return user;
+};
+
+/** PATCH /api/admin/users/:userId/unsuspend — reverses a suspension. */
+export const unsuspendUser = async ({ adminId, userId, adminNotes }) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found", "USER_NOT_FOUND");
+  }
+
+  user.isActive = true;
+  await user.save();
+
+  await writeAuditLog(adminId, "user_unsuspended", "user", user._id, { adminNotes: adminNotes || null });
 
   return user;
 };

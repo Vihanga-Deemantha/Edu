@@ -28,6 +28,20 @@ export const suspendUser = async (req, res, next) => {
   }
 };
 
+// ─── PATCH /api/admin/users/:userId/unsuspend ────────────────────────────────
+export const unsuspendUser = async (req, res, next) => {
+  try {
+    const user = await adminService.unsuspendUser({
+      adminId: req.user.id,
+      userId: req.params.userId,
+      adminNotes: req.body.adminNotes,
+    });
+    res.status(200).json({ success: true, data: { user: { id: user._id, isActive: user.isActive } } });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ─── PATCH /api/admin/listings/:id/moderate ──────────────────────────────────
 export const moderateListing = async (req, res, next) => {
   try {

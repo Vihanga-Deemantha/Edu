@@ -3,6 +3,7 @@ import * as adminController from "./admin.controller.js";
 import {
   reviewVerificationValidation,
   suspendUserValidation,
+  unsuspendUserValidation,
   moderateListingValidation,
   listReportsValidation,
   resolveReportValidation,
@@ -34,6 +35,15 @@ router.patch(
  * Sets isActive: false and immediately revokes every active session.
  */
 router.patch("/users/:userId/suspend", suspendUserValidation, validate, adminController.suspendUser);
+
+/**
+ * PATCH /api/admin/users/:userId/unsuspend
+ * Sets isActive: true — a real resolution path (an appeal, a mistaken
+ * suspension), not a one-way switch. Session revocation on suspend was
+ * already permanent (RefreshTokens are deleted, not just flagged), so
+ * unsuspending only restores the ability to log in again, not any old session.
+ */
+router.patch("/users/:userId/unsuspend", unsuspendUserValidation, validate, adminController.unsuspendUser);
 
 /**
  * PATCH /api/admin/listings/:id/moderate

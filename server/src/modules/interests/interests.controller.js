@@ -6,7 +6,7 @@ import { enqueueNotificationJob } from "../../queues/notification.queue.js";
 // ─── POST /api/interests  (protected: teacher, student, parent) ─────────────
 export const createInterestRequest = async (req, res, next) => {
   try {
-    const { interestRequest, listing } = await interestsService.createInterestRequest({
+    const { interestRequest, listing, fromName } = await interestsService.createInterestRequest({
       requesterId: req.user.id,
       requesterRole: req.user.role,
       ...req.body,
@@ -15,7 +15,7 @@ export const createInterestRequest = async (req, res, next) => {
     enqueueNotificationJob({
       userId: interestRequest.toUserId,
       type: "interest_received",
-      payload: { subject: listing.subject },
+      payload: { subject: listing.subject, fromName },
     });
     logEventFromRequest(req, {
       action: "interest_sent",

@@ -104,6 +104,19 @@ describe("POST /api/payments/checkout", () => {
     expect(payment.currency).toBe("usd");
   });
 
+  it("respects an explicit TRIAL_DEPOSIT_AMOUNT_CENTS=0 as a genuine free deposit (regression: `|| 1000` used to treat 0 as missing)", async () => {
+    const { student, bookingId } = await setUpConfirmedBooking();
+    const original = process.env.TRIAL_DEPOSIT_AMOUNT_CENTS;
+    process.env.TRIAL_DEPOSIT_AMOUNT_CENTS = "0";
+
+    const res = await checkout(student.accessToken, bookingId);
+
+    process.env.TRIAL_DEPOSIT_AMOUNT_CENTS = original;
+    expect(res.status).toBe(201);
+    const payment = await Payment.findOne({ bookingId });
+    expect(payment.amount).toBe(0);
+  });
+
   it("lets a parent pay on behalf of their linked child's booking", async () => {
     const teacher = await newTeacher();
     const { parent, childId } = await newParentWithChild();

@@ -187,6 +187,31 @@ describe("POST /api/bookings", () => {
     expect(res.body.error.code).toBe("OUTSIDE_AVAILABILITY");
   });
 
+  it("under two concurrent requests for the same overlapping slot, exactly one booking survives confirmed", async () => {
+    // Regression test for a real race: the pre-create hasConflict check is a
+    // plain read, not an atomic guard, so two requests that both read
+    // "no conflict" before either commits could previously both create a
+    // "confirmed" booking for the same teacher at overlapping times.
+    // Promise.all genuinely interleaves these two HTTP requests' internal
+    // awaits — but even if a given run happens not to race (fully
+    // serialized), the assertion below still holds: the pre-existing
+    // pre-check alone correctly rejects the second one in that case too.
+    // Either way, the invariant under test — never two confirmed
+    // overlapping bookings for one teacher — must hold.
+    const teacher = await newTeacher();
+    const student = await newStudent();
+    const interestId = await createAcceptedInterest(teacher, student.accessToken);
+    await addAvailability(teacher.accessToken, { dayOfWeek: 3, startTime: "10:00", endTime: "14:00" });
+    const startTime = nextOccurrence(3, "11:00").toISOString();
+
+    const [resA, resB] = await Promise.all([
+      createBooking(student.accessToken, { interestRequestId: interestId, startTime, durationMinutes: 60 }),
+      createBooking(student.accessToken, { interestRequestId: interestId, startTime, durationMinutes: 60 }),
+    ]);
+
+    expect([resA.status, resB.status].sort()).toEqual([201, 409]);
+  });
+
   it("rejects a time overlapping an existing confirmed booking for the same teacher", async () => {
     const teacher = await newTeacher();
     const student = await newStudent();

@@ -91,7 +91,7 @@ export const createBooking = async ({
     throw new ApiError(409, "This teacher already has a booking that overlaps this time.", "BOOKING_CONFLICT");
   }
 
-  return Booking.create({
+  const booking = await Booking.create({
     interestRequestId,
     teacherId: teacherUser._id,
     studentId: nonTeacherUser._id,
@@ -99,6 +99,35 @@ export const createBooking = async ({
     endTime: end,
     notes,
   });
+
+  // The hasConflict check above is a plain read, not an atomic guard — two
+  // concurrent requests for the same teacher's overlapping slot can both
+  // pass it before either has actually committed, and both create a
+  // "confirmed" booking (MongoDB has no range-exclusion constraint to catch
+  // this at the index level the way a unique index would). This re-check
+  // runs AFTER this document is durably persisted, against any OTHER
+  // confirmed, overlapping booking created earlier (smaller _id — ObjectIds
+  // are monotonic within this one server process). If one exists, this
+  // request lost the race: back out the booking just created and report the
+  // same conflict a same-timed pre-check would have. Whichever create()
+  // actually lands in Mongo first survives; the other always finds it here
+  // and self-cancels — so exactly one confirmed booking survives regardless
+  // of how close the timing was.
+  const olderConflict = await Booking.findOne({
+    teacherId: teacherUser._id,
+    status: "confirmed",
+    _id: { $lt: booking._id },
+    startTime: { $lt: end },
+    endTime: { $gt: start },
+  }).select("_id");
+
+  if (olderConflict) {
+    booking.status = "cancelled";
+    await booking.save();
+    throw new ApiError(409, "This teacher already has a booking that overlaps this time.", "BOOKING_CONFLICT");
+  }
+
+  return booking;
 };
 
 /** GET /api/bookings/mine — the caller's own, as either teacher or student side. */

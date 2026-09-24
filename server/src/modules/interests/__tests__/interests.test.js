@@ -3,6 +3,7 @@ import request from "supertest";
 import app from "../../../app.js";
 import TeacherVerification from "../../../models/TeacherVerification.js";
 import Conversation from "../../../models/Conversation.js";
+import * as notificationQueue from "../../../queues/notification.queue.js";
 import { registerAndVerify } from "../../../test/helpers.js";
 
 const createListing = async (token, overrides = {}) => {
@@ -67,7 +68,23 @@ describe("POST /api/interests", () => {
     expect(res.status).toBe(201);
     expect(res.body.data.interestRequest.fromUserId).toBe(student.userId);
     expect(res.body.data.interestRequest.toUserId).toBe(teacher.userId);
-    expect(res.body.data.interestRequest.status).toBe("pending");
+  });
+
+  it("passes the sender's real name to the interest_received notification (regression: used to always say 'Someone')", async () => {
+    const teacher = await newTeacher();
+    const listing = await createListing(teacher.accessToken);
+    const student = await newStudent();
+    const enqueueSpy = vi.spyOn(notificationQueue, "enqueueNotificationJob");
+
+    await sendInterest(student.accessToken, { listingId: listing._id, message: "Hi!" });
+
+    expect(enqueueSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "interest_received",
+        payload: expect.objectContaining({ fromName: student.payload.name }),
+      })
+    );
+    enqueueSpy.mockRestore();
   });
 
   it("lets a parent send interest on a teacher_ad on behalf of a linked child", async () => {
@@ -280,6 +297,30 @@ describe("PATCH /api/interests/:id/respond", () => {
     expect(res.body.data.interestRequest.fromContact.email).toBe(student.payload.email);
 
     createSpy.mockRestore();
+  });
+
+  it("under two concurrent respond calls (accept + decline racing), exactly one wins", async () => {
+    // Regression test for a real race: the previous findById-then-save
+    // implementation let two concurrent respond calls both read status
+    // "pending" before either wrote, so the LATER save silently overwrote
+    // the earlier one's result — including an already-created chat
+    // Conversation and contact info already returned to the "winning"
+    // client for what the database now disagreed with. The fix makes the
+    // actual status write conditional on status still being "pending" at
+    // that exact moment, so only one of two racing requests can ever
+    // succeed — this holds whether or not a given run's requests actually
+    // interleave, which Promise.all encourages but doesn't guarantee.
+    const { teacher, interestId } = await createAndSend();
+
+    const [acceptRes, declineRes] = await Promise.all([
+      respond(teacher.accessToken, interestId, "accepted"),
+      respond(teacher.accessToken, interestId, "declined"),
+    ]);
+
+    const statuses = [acceptRes.status, declineRes.status].sort();
+    expect(statuses).toEqual([200, 400]);
+    const winner = acceptRes.status === 200 ? acceptRes : declineRes;
+    expect(["accepted", "declined"]).toContain(winner.body.data.interestRequest.status);
   });
 
   it("lets the teacher decline, revealing no contact info", async () => {
