@@ -46,6 +46,15 @@ const searchViaVectorIndex = async ({ filter, queryEmbedding, limitNum, skip }) 
     },
     { $match: filter },
     { $addFields: { semanticScore: { $meta: "vectorSearchScore" } } },
+    // Mongoose's `select: false` on Listing.embedding (see the model) only
+    // applies to find/findOne-style queries — a raw aggregate() bypasses it
+    // completely, so without this, every document coming out of
+    // $vectorSearch above would still carry its full 384-float embedding
+    // array all the way into the API response. searchViaInMemoryFallback
+    // strips it too (its own `delete obj.embedding` below), for the same
+    // reason — the two paths need this independently since neither goes
+    // through the other.
+    { $unset: "embedding" },
     {
       $facet: {
         data: [{ $skip: skip }, { $limit: limitNum }],

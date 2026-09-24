@@ -79,6 +79,36 @@ describe("POST /api/search/semantic", () => {
     expect(res.body.data.listings.every((l) => l.type === "teacher_ad")).toBe(true);
   });
 
+  it("excludes the raw embedding field from the $vectorSearch pipeline itself (regression: aggregate() bypasses Mongoose's select:false)", async () => {
+    // The other "never exposes the raw embedding field" test below only
+    // ever exercises searchViaInMemoryFallback, since MongoMemoryServer
+    // can't run $vectorSearch at all — it can't tell us anything about
+    // whether the REAL vector-index pipeline strips the field too. This
+    // test inspects the pipeline array itself (via a spy, not a mocked
+    // rejection) so it still catches a regression here even though the
+    // pipeline can never actually succeed in this test environment.
+    const teacher = await newTeacher();
+    await createListing(teacher, {
+      subject: "EmbeddingPipelineTest",
+      description: "Calculus and algebra expert tutor for exams.",
+    });
+    const aggregateSpy = vi.spyOn(Listing, "aggregate");
+
+    await request(app).post("/api/search/semantic").send({ query: "calculus", subject: "EmbeddingPipelineTest" });
+
+    expect(aggregateSpy).toHaveBeenCalled();
+    const pipeline = aggregateSpy.mock.calls[0][0];
+    const stripsEmbedding = pipeline.some(
+      (stage) =>
+        stage.$unset === "embedding" ||
+        (Array.isArray(stage.$unset) && stage.$unset.includes("embedding")) ||
+        (stage.$project && stage.$project.embedding === 0)
+    );
+    expect(stripsEmbedding).toBe(true);
+
+    aggregateSpy.mockRestore();
+  });
+
   it("never exposes the raw embedding field", async () => {
     const teacher = await newTeacher();
     await createListing(teacher, {

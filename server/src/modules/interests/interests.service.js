@@ -75,7 +75,12 @@ export const createInterestRequest = async ({ requesterId, requesterRole, listin
       toUserId: listing.ownerId,
       message,
     });
-    return { interestRequest, listing };
+    // For the interest_received notification's "<fromName> sent you an
+    // interest request" template — genuinely never wired up before now, so
+    // every such notification/email has always read "Someone sent you...",
+    // in production, regardless of who actually sent it.
+    const fromUser = await User.findById(fromUserId).select("name");
+    return { interestRequest, listing, fromName: fromUser?.name };
   } catch (err) {
     // Race-free duplicate guard — see the partial unique index on
     // InterestRequest (listingId + fromUserId, status: pending only).
@@ -162,12 +167,26 @@ export const respondToInterestRequest = async ({ interestId, requesterId, reques
     await enforceVerificationGate(fromUser, toUser, teacherUser);
   }
 
-  interestRequest.status = status;
-  interestRequest.respondedAt = new Date();
-  await interestRequest.save();
+  // Atomic, not findById-then-save: two respond calls for the same request
+  // (e.g. an accept and a decline racing from a slow-network double-submit,
+  // or a UI double-tap before the button disables) can both read "pending"
+  // above before either writes — the plain-save version let the LATER write
+  // silently overwrite whatever the earlier one committed, including an
+  // already-created chat Conversation and contact info already returned to
+  // the "winning" client for what the database now calls declined. This
+  // only succeeds if status is STILL "pending" at the moment it actually
+  // runs, so exactly one of two racing requests can ever win.
+  const updated = await InterestRequest.findOneAndUpdate(
+    { _id: interestRequest._id, status: "pending" },
+    { status, respondedAt: new Date() },
+    { new: true }
+  );
+  if (!updated) {
+    throw new ApiError(400, "This request has already been responded to.", "INVALID_STATE");
+  }
 
-  const listing = await Listing.findById(interestRequest.listingId).select("subject");
-  return { interestRequest, listing };
+  const listing = await Listing.findById(updated.listingId).select("subject");
+  return { interestRequest: updated, listing };
 };
 
 // ─── COMPLETE ────────────────────────────────────────────────────────────────
@@ -208,12 +227,21 @@ export const completeInterestRequest = async ({ interestId, requesterId, request
     throw new ApiError(400, "Only an accepted request can be marked completed.", "INVALID_STATE");
   }
 
-  interestRequest.status = "completed";
-  await interestRequest.save();
+  // Atomic — same race as respondToInterestRequest above (e.g. both
+  // participants tapping "mark complete" at once): only succeeds if status
+  // is STILL "accepted" at the moment it runs.
+  const updated = await InterestRequest.findOneAndUpdate(
+    { _id: interestRequest._id, status: "accepted" },
+    { status: "completed" },
+    { new: true }
+  );
+  if (!updated) {
+    throw new ApiError(400, "Only an accepted request can be marked completed.", "INVALID_STATE");
+  }
 
-  const listing = await Listing.findById(interestRequest.listingId).select("subject");
-  const notifyUserId = actingSide === "from" ? interestRequest.toUserId : interestRequest.fromUserId;
-  return { interestRequest, listing, notifyUserId };
+  const listing = await Listing.findById(updated.listingId).select("subject");
+  const notifyUserId = actingSide === "from" ? updated.toUserId : updated.fromUserId;
+  return { interestRequest: updated, listing, notifyUserId };
 };
 
 // ─── READ ────────────────────────────────────────────────────────────────────

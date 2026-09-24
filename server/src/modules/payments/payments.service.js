@@ -30,7 +30,12 @@ export const createCheckoutSession = async ({ bookingId, requesterId, requesterR
     throw new ApiError(409, "This booking's trial deposit has already been paid.", "ALREADY_PAID");
   }
 
-  const amount = parseInt(process.env.TRIAL_DEPOSIT_AMOUNT_CENTS, 10) || 1000;
+  // `|| 1000` would treat an explicit TRIAL_DEPOSIT_AMOUNT_CENTS=0 (a
+  // deliberately free trial deposit) as falsy and silently override it back
+  // to the $10 default — only an actually-missing/malformed value should
+  // fall back.
+  const parsedAmount = parseInt(process.env.TRIAL_DEPOSIT_AMOUNT_CENTS, 10);
+  const amount = Number.isInteger(parsedAmount) && parsedAmount >= 0 ? parsedAmount : 1000;
   const stripe = getStripeClient();
   const session = await stripe.checkout.sessions.create({
     mode: "payment",

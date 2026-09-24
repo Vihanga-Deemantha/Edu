@@ -95,6 +95,8 @@ Quick-glance checklist of what's actually left to finish this roadmap. Kept in s
 - [x] Phase 18B — Payments Backend (Stripe, not PayHere/WebXPay — see the resolved note below)
 - [x] Phase 19B — Multi-language content fields
 
+**Post-completion full-backend audit (after 19B)**: a cross-cutting pass across every phase, not tied to any one of them. Found and fixed 10 real issues — most seriously, a silent env-var-loading-order bug (Redis URL and Google Sign-In were both being silently ignored in any real deployment, invisible to tests since the suite bypasses server.js's dotenv loading), a chat-socket crash reachable by any authenticated client, a double-booking race condition, a TOCTOU race on interest accept/decline, and an aggregation pipeline that would have leaked the raw embedding vector once the real Atlas Vector Search index is created. Two things were deliberately flagged rather than silently fixed, since they're policy calls: cancelling a booking with an already-paid Stripe deposit doesn't trigger a refund or flag anything for manual follow-up, and admin audit-log writes aren't atomic with the mutation they record (a narrow, low-probability gap). Full list in the session's own record — ask if you want it written up separately.
+
 **Frontend — all 11 phases still unbuilt**, deliberately deferred until every backend phase above is done (per the backend-first build order — nothing here has started, not even Phase 3):
 - [ ] Phase 3 — Profiles Frontend
 - [ ] Phase 5 — Listings Frontend

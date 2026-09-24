@@ -209,6 +209,41 @@ describe("PATCH /api/admin/users/:userId/suspend", () => {
   });
 });
 
+describe("PATCH /api/admin/users/:userId/unsuspend", () => {
+  it("reverses a suspension, allowing login again", async () => {
+    const student = await registerAndVerify({ role: "student" });
+    const admin = await newAdmin();
+    await request(app)
+      .patch(`/api/admin/users/${student.userId}/suspend`)
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .send({});
+
+    const res = await request(app)
+      .patch(`/api/admin/users/${student.userId}/unsuspend`)
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .send({ adminNotes: "Appeal accepted." });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.isActive).toBe(true);
+
+    const loginRes = await request(app)
+      .post("/api/auth/login")
+      .send({ email: student.payload.email, password: student.payload.password });
+    expect(loginRes.status).toBe(200);
+  });
+
+  it("404s for a nonexistent user", async () => {
+    const admin = await newAdmin();
+
+    const res = await request(app)
+      .patch("/api/admin/users/000000000000000000000000/unsuspend")
+      .set("Authorization", `Bearer ${admin.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("PATCH /api/admin/listings/:id/moderate", () => {
   it("flags a listing, removing it from public browse results", async () => {
     const teacher = await registerAndVerify({ role: "teacher" });
