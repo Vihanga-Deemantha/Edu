@@ -57,3 +57,39 @@ export const resolveReportValidation = [
     .withMessage("status must be 'resolved' or 'dismissed'"),
   adminNotesValidator(),
 ];
+
+const pageValidators = () => [
+  query("page").optional().isInt({ min: 1 }).withMessage("page must be a positive integer"),
+  query("limit").optional().isInt({ min: 1, max: 50 }).withMessage("limit must be between 1 and 50"),
+];
+
+const searchValidator = () =>
+  query("q").optional().isString().isLength({ max: 200 }).withMessage("q must be at most 200 characters");
+
+export const statsValidation = [
+  query("rangeDays").optional().isInt({ min: 1, max: 366 }).withMessage("rangeDays must be between 1 and 366"),
+];
+
+export const listVerificationsValidation = [
+  query("status")
+    .optional()
+    .isIn(["pending", "approved", "rejected", "all"])
+    .withMessage("status must be one of: pending, approved, rejected, all"),
+  searchValidator(),
+  ...pageValidators(),
+];
+
+export const userIdParamValidation = [param("userId").isMongoId().withMessage("Invalid userId")];
+
+export const listUsersValidation = [
+  query("role").optional().isIn(["teacher", "student", "parent"]).withMessage("role must be teacher, student or parent"),
+  query("status").optional().isIn(["active", "suspended"]).withMessage("status must be active or suspended"),
+  searchValidator(),
+  ...pageValidators(),
+];
+
+export const listListingsValidation = [
+  query("status").optional().isIn(["active", "closed", "flagged"]).withMessage("status must be active, closed or flagged"),
+  searchValidator(),
+  ...pageValidators(),
+];

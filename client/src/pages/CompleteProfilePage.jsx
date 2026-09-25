@@ -5,26 +5,24 @@ import { z } from "zod";
 import { useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import useAuth from "../hooks/useAuth.js";
-import FormError from "../components/FormError.jsx";
+import { phoneField } from "../validation/authSchemas.js";
+import AuthLayout, { AuthHeading, PhoneInput, SubmitButton } from "../components/auth/AuthLayout.jsx";
+import { Avatar, Field } from "../components/ui/index.jsx";
+import { apiError } from "../lib/format.js";
 
 const schema = z.object({
-  role: z.enum(["teacher", "student", "parent"], {
-    errorMap: () => ({ message: "Please select your role" }),
-  }),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^(\+94|0)[0-9]{9}$/, "Phone must be a valid Sri Lankan number (+94XXXXXXXXX or 0XXXXXXXXX)"),
+  role: z.enum(["teacher", "student", "parent"], { message: "Please select your role" }),
+  phone: phoneField,
 });
 
 const ROLES = [
-  { value: "teacher", label: "Teacher" },
   { value: "student", label: "Student" },
   { value: "parent", label: "Parent" },
+  { value: "teacher", label: "Teacher" },
 ];
 
 const CompleteProfilePage = () => {
-  const { status, completeProfile } = useAuth();
+  const { status, completeProfile, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,76 +33,67 @@ const CompleteProfilePage = () => {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
-  } = useForm({ resolver: zodResolver(schema) });
+  } = useForm({ resolver: zodResolver(schema), defaultValues: { role: "" } });
+  const role = watch("role");
 
-  const onSubmit = async ({ role, phone }) => {
+  const onSubmit = async ({ role: r, phone }) => {
     try {
-      await completeProfile(role, phone);
-      toast.success("Profile updated! Please verify your phone number.");
+      await completeProfile(r, phone);
+      toast.success("Saved. Now verify your phone number.");
       navigate("/verify-otp");
     } catch (err) {
-      const message =
-        err.response?.data?.error?.message || "Something went wrong. Please try again.";
-      toast.error(message);
+      toast.error(apiError(err));
     }
   };
 
   return (
-    <div className="auth-container">
-      <div className="bg-blob" />
-
-      <div className="auth-card">
-        <div className="text-center" style={{ marginBottom: "2rem" }}>
-          <div className="auth-icon" style={{ backgroundColor: "var(--highlight)", color: "var(--white)", boxShadow: "0 4px 12px rgba(244, 184, 216, 0.4)" }}>
-            👤
+    <AuthLayout aside={{ title: "Nearly there.", sub: "Tell us a little about yourself so we can show you the right teachers." }}>
+      <form className="flex flex-col gap-[22px]" onSubmit={handleSubmit(onSubmit)} noValidate>
+        {user?.name && (
+          <div className="flex items-center gap-3 rounded-xl border border-line bg-white px-4 py-3.5">
+            <Avatar name={user.name} size={40} solid />
+            <div className="min-w-0 flex-1">
+              <div className="text-[15px] font-semibold">{user.name}</div>
+              <div className="truncate text-[13px] text-ink-2">{user.email} · via Google</div>
+            </div>
+            <span className="text-xs font-semibold text-primary">✓ Email verified</span>
           </div>
-          <h1 className="text-3xl font-bold" style={{ marginBottom: "0.5rem", color: "var(--text-main)" }}>Complete your profile</h1>
-          <p className="text-sm text-muted">
-            Almost there — just tell us your role and phone number.
-          </p>
+        )}
+        <AuthHeading title="Complete your profile" sub="Almost there. Tell us who you are and add your mobile number." />
+        <div className="flex flex-col gap-2">
+          <span className="field-label">I am a…</span>
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Account type">
+            {ROLES.map((r) => {
+              const on = role === r.value;
+              return (
+                <button
+                  key={r.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setValue("role", r.value, { shouldValidate: true })}
+                  className="serif rounded-[10px] border-[1.5px] px-2 py-3.5 text-center text-[17px] font-bold hover:border-primary"
+                  style={{ borderColor: on ? "var(--primary)" : "var(--line)", background: on ? "var(--mist)" : "#fff" }}
+                >
+                  {r.label}
+                </button>
+              );
+            })}
+          </div>
+          {errors.role && <span className="field-err">{errors.role.message}</span>}
         </div>
-
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
-          <div className="form-group" style={{ marginBottom: "0" }}>
-            <label htmlFor="cp-role" className="form-label">I am a…</label>
-            <select id="cp-role" className={`form-select ${errors.role ? "input-error" : ""}`} {...register("role")}>
-              <option value="">Select your role</option>
-              {ROLES.map((r) => (
-                <option key={r.value} value={r.value}>{r.label}</option>
-              ))}
-            </select>
-            <FormError message={errors.role?.message} />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: "0" }}>
-            <label htmlFor="cp-phone" className="form-label">Phone number</label>
-            <input
-              id="cp-phone"
-              type="tel"
-              className={`form-input ${errors.phone ? "input-error" : ""}`}
-              placeholder="+94771234567 or 0771234567"
-              {...register("phone")}
-            />
-            <FormError message={errors.phone?.message} />
-          </div>
-
-          <button
-            id="complete-profile-submit"
-            type="submit"
-            className="btn btn-accent btn-full"
-            style={{ marginTop: "0.5rem" }}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? <span className="btn-spinner" /> : "Continue"}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-muted" style={{ marginTop: "2rem" }}>
-          <Link to="/login" className="text-primary font-bold" onMouseEnter={(e) => e.target.style.color = "var(--primary-dark)"} onMouseLeave={(e) => e.target.style.color = "var(--primary)"}>← Back to sign in</Link>
-        </p>
-      </div>
-    </div>
+        <Field label="Mobile number" error={errors.phone?.message}>
+          <PhoneInput autoComplete="tel" error={errors.phone} {...register("phone")} />
+        </Field>
+        <SubmitButton loading={isSubmitting} loadingText="Saving…">Continue</SubmitButton>
+      </form>
+      <span className="text-center text-sm text-ink-2">
+        Already have an account? <Link to="/login" className="font-semibold">Sign in</Link>
+      </span>
+    </AuthLayout>
   );
 };
 

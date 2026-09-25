@@ -81,3 +81,63 @@ export const resolveReport = async (req, res, next) => {
     next(err);
   }
 };
+
+// ─── GET /api/admin/stats ─────────────────────────────────────────────────────
+export const getStats = async (req, res, next) => {
+  try {
+    const stats = await adminService.getStats({ rangeDays: req.query.rangeDays });
+    res.status(200).json({ success: true, data: { stats } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── GET /api/admin/verifications ─────────────────────────────────────────────
+export const listVerifications = async (req, res, next) => {
+  try {
+    const result = await adminService.listVerifications(req.query);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── GET /api/admin/verifications/:userId ─────────────────────────────────────
+export const getVerificationDetail = async (req, res, next) => {
+  try {
+    const verification = await adminService.getVerificationDetail(req.params.userId);
+    res.status(200).json({ success: true, data: { verification } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── GET /api/admin/users ─────────────────────────────────────────────────────
+export const listUsers = async (req, res, next) => {
+  try {
+    const result = await adminService.listUsers(req.query);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── GET /api/admin/users/:userId/audit ───────────────────────────────────────
+export const getUserAudit = async (req, res, next) => {
+  try {
+    const auditLog = await adminService.getUserAudit(req.params.userId);
+    res.status(200).json({ success: true, data: { auditLog } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── GET /api/admin/listings ──────────────────────────────────────────────────
+export const listListings = async (req, res, next) => {
+  try {
+    const result = await adminService.listListings(req.query);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};

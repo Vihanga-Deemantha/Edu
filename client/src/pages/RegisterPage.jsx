@@ -1,196 +1,157 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { GoogleLogin } from "@react-oauth/google";
 import useAuth from "../hooks/useAuth.js";
 import { registerSchema } from "../validation/authSchemas.js";
-import FormError from "../components/FormError.jsx";
+import AuthLayout, { AuthHeading, PasswordInput, PhoneInput, StrengthMeter, SubmitButton } from "../components/auth/AuthLayout.jsx";
+import GoogleSignIn from "../components/auth/GoogleSignIn.jsx";
+import { Field } from "../components/ui/index.jsx";
+import { apiError } from "../lib/format.js";
 
-const GOOGLE_ENABLED = import.meta.env.VITE_GOOGLE_SIGNIN_ENABLED === "true";
-
-const ROLES = [
-  { value: "teacher", label: "Teacher" },
-  { value: "student", label: "Student" },
-  { value: "parent", label: "Parent" },
+const ROLE_OPTIONS = [
+  { value: "student", label: "Student", desc: "Find teachers and book classes for yourself." },
+  { value: "parent", label: "Parent", desc: "Manage your child's learning. You'll add them after signing up." },
+  { value: "teacher", label: "Teacher", desc: "Post subject ads, get verified and receive students." },
 ];
 
+const RoleOption = ({ option, selected, onSelect }) => (
+  <button type="button" role="radio" aria-checked={selected} onClick={onSelect} className={`option ${selected ? "on" : ""}`}>
+    <span
+      className="serif flex h-[46px] w-[46px] flex-none items-center justify-center rounded-[10px] text-[22px] font-bold italic"
+      style={{ background: selected ? "var(--primary)" : "var(--mist)", color: selected ? "#fff" : "var(--primary)" }}
+    >
+      {option.label[0]}
+    </span>
+    <span className="flex flex-1 flex-col gap-[3px]">
+      <span className="serif text-[19px] font-bold">{option.label}</span>
+      <span className="text-sm leading-snug text-ink-2">{option.desc}</span>
+    </span>
+    <span
+      className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full border-2"
+      style={{ borderColor: selected ? "var(--primary)" : "var(--line)" }}
+    >
+      <span className="h-2.5 w-2.5 rounded-full" style={{ background: selected ? "var(--primary)" : "transparent" }} />
+    </span>
+  </button>
+);
+
 const RegisterPage = () => {
-  const { register: registerAuth, googleLogin, status } = useAuth();
+  const { register: registerAuth, status } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const initialRole = ROLE_OPTIONS.some((r) => r.value === searchParams.get("role")) ? searchParams.get("role") : "";
+  const [step, setStep] = useState(1);
+  const [roleError, setRoleError] = useState("");
 
   useEffect(() => {
     if (status === "authenticated") navigate("/dashboard", { replace: true });
   }, [status, navigate]);
 
-  const defaultRole = ROLES.some(r => r.value === searchParams.get("role")) 
-    ? searchParams.get("role") 
-    : "";
-
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
-  } = useForm({ 
-    resolver: zodResolver(registerSchema),
-    defaultValues: { role: defaultRole }
-  });
+  } = useForm({ resolver: zodResolver(registerSchema), defaultValues: { role: initialRole } });
+  const role = watch("role");
+  const password = watch("password");
 
   const onSubmit = async (data) => {
     try {
       const payload = { ...data };
       delete payload.confirmPassword;
       await registerAuth(payload);
-      toast.success("Account created! Please verify your contact details.");
+      toast.success("Account created. Now verify your email and phone.");
       navigate("/verify-otp");
     } catch (err) {
-      const message =
-        err.response?.data?.error?.message ||
-        "Registration failed. Please try again.";
-      toast.error(message);
+      toast.error(apiError(err, "Registration failed. Please try again."));
     }
   };
 
-  const onGoogleSuccess = async (credentialResponse) => {
-    try {
-      const data = await googleLogin(credentialResponse.credential);
-      if (data?.profileIncomplete) {
-        navigate("/complete-profile");
-      } else {
-        navigate("/dashboard");
-      }
-    } catch (err) {
-      const msg = err.response?.data?.error?.message || "Google sign-up failed. Please try again.";
-      toast.error(msg);
+  const continueFromRole = () => {
+    if (!role) {
+      setRoleError("Choose how you will use EduLink");
+      return;
     }
+    setStep(2);
   };
 
   return (
-    <div className="auth-container">
-      <div className="bg-blob" />
+    <AuthLayout
+      aside={{
+        title: "Start learning with a teacher you can trust.",
+        sub: "Join students, parents and verified teachers across Sri Lanka. It takes under two minutes.",
+      }}
+    >
+      <div className="flex flex-col gap-6">
+        <AuthHeading
+          eyebrow={`Step ${step} of 2`}
+          title={step === 1 ? "How will you use EduLink?" : "Create your account"}
+          sub={step === 1 ? "You can’t change this later, so pick the one that fits." : "We’ll verify your email and phone next."}
+        />
 
-      <div className="auth-card">
-        <div className="text-center" style={{ marginBottom: "2rem" }}>
-          <img src="/edulink-friendly-logo.png" alt="EduLink Logo" style={{ width: "3.5rem", height: "3.5rem", margin: "0 auto 1.25rem", borderRadius: "1rem", boxShadow: "0 4px 12px rgba(79, 125, 243, 0.15)" }} />
-          <h1 className="text-3xl font-bold" style={{ marginBottom: "0.5rem", color: "var(--text-main)" }}>Create Account</h1>
-          <p className="text-sm text-muted">Join EduLink to get started</p>
-        </div>
-
-        {GOOGLE_ENABLED && (
-          <>
-            <div className="flex justify-center" style={{ marginBottom: "1.25rem" }}>
-              <GoogleLogin
-                onSuccess={onGoogleSuccess}
-                onError={() => toast.error("Google sign-up failed. Please try again.")}
-                useOneTap
-                size="large"
-                shape="rectangular"
-                theme="outline"
-                text="signup_with"
+        {step === 1 ? (
+          <div className="flex flex-col gap-3" role="radiogroup" aria-label="Account type">
+            {ROLE_OPTIONS.map((opt) => (
+              <RoleOption
+                key={opt.value}
+                option={opt}
+                selected={role === opt.value}
+                onSelect={() => {
+                  setValue("role", opt.value);
+                  setRoleError("");
+                }}
               />
+            ))}
+            {roleError && <span className="field-err">{roleError}</span>}
+            <button type="button" className="btn btn-primary btn-block mt-2" onClick={continueFromRole}>
+              Continue
+            </button>
+            <GoogleSignIn text="signup_with" />
+          </div>
+        ) : (
+          <form className="flex flex-col gap-[18px]" onSubmit={handleSubmit(onSubmit)} noValidate>
+            <div className="flex items-center justify-between rounded-[10px] bg-mist px-4 py-3 text-sm">
+              <span>
+                Signing up as <b>{role}</b>
+              </span>
+              <button type="button" onClick={() => setStep(1)} className="border-0 bg-transparent font-semibold text-primary">
+                Change
+              </button>
             </div>
-            <div className="divider">or sign up with email</div>
-          </>
+            <Field label="Full name" error={errors.name?.message}>
+              <input autoComplete="name" placeholder="Nimal Silva" className={`input ${errors.name ? "err" : ""}`} {...register("name")} />
+            </Field>
+            <Field label="Email" error={errors.email?.message}>
+              <input type="email" autoComplete="email" placeholder="you@example.com" className={`input ${errors.email ? "err" : ""}`} {...register("email")} />
+            </Field>
+            <Field label="Mobile number" error={errors.phone?.message} hint="We'll text a code to verify it.">
+              <PhoneInput autoComplete="tel" error={errors.phone} {...register("phone")} />
+            </Field>
+            <Field label="Password" error={errors.password?.message}>
+              <PasswordInput autoComplete="new-password" placeholder="At least 8 characters" error={errors.password} {...register("password")} />
+              <StrengthMeter password={password} />
+            </Field>
+            <Field label="Confirm password" error={errors.confirmPassword?.message}>
+              <input type="password" autoComplete="new-password" placeholder="Re-enter password" className={`input ${errors.confirmPassword ? "err" : ""}`} {...register("confirmPassword")} />
+            </Field>
+            {errors.role && <span className="field-err">{errors.role.message}</span>}
+            <div className="mt-1.5">
+              <SubmitButton loading={isSubmitting} loadingText="Creating account…">Create account</SubmitButton>
+            </div>
+            <span className="text-center text-[13px] leading-normal text-ink-2">
+              By creating an account you agree to our Terms and Privacy Policy.
+            </span>
+          </form>
         )}
-
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
-          <div className="form-group" style={{ marginBottom: "0" }}>
-            <label htmlFor="reg-name" className="form-label">Full Name</label>
-            <input
-              id="reg-name"
-              className={`form-input ${errors.name ? "input-error" : ""}`}
-              placeholder="John Silva"
-              {...register("name")}
-            />
-            <FormError message={errors.name?.message} />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: "0" }}>
-            <label htmlFor="reg-email" className="form-label">Email</label>
-            <input
-              id="reg-email"
-              type="email"
-              className={`form-input ${errors.email ? "input-error" : ""}`}
-              placeholder="you@example.com"
-              {...register("email")}
-            />
-            <FormError message={errors.email?.message} />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: "0" }}>
-            <label htmlFor="reg-phone" className="form-label">Phone</label>
-            <input
-              id="reg-phone"
-              type="tel"
-              className={`form-input ${errors.phone ? "input-error" : ""}`}
-              placeholder="+94771234567 or 0771234567"
-              {...register("phone")}
-            />
-            <FormError message={errors.phone?.message} />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: "0" }}>
-            <label htmlFor="reg-role" className="form-label">Role</label>
-            <select
-              id="reg-role"
-              className={`form-select ${errors.role ? "input-error" : ""}`}
-              {...register("role")}
-            >
-              <option value="">Select your role</option>
-              {ROLES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-            <FormError message={errors.role?.message} />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: "0" }}>
-            <label htmlFor="reg-password" className="form-label">Password</label>
-            <input
-              id="reg-password"
-              type="password"
-              className={`form-input ${errors.password ? "input-error" : ""}`}
-              placeholder="Min. 8 characters"
-              {...register("password")}
-            />
-            <FormError message={errors.password?.message} />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: "0" }}>
-            <label htmlFor="reg-confirm" className="form-label">Confirm Password</label>
-            <input
-              id="reg-confirm"
-              type="password"
-              className={`form-input ${errors.confirmPassword ? "input-error" : ""}`}
-              placeholder="Re-enter password"
-              {...register("confirmPassword")}
-            />
-            <FormError message={errors.confirmPassword?.message} />
-          </div>
-
-          <button
-            id="register-submit"
-            type="submit"
-            className="btn btn-primary btn-full"
-            style={{ marginTop: "0.5rem" }}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? <span className="btn-spinner" /> : "Create Account"}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-muted" style={{ marginTop: "2rem" }}>
-          Already have an account?{" "}
-          <Link to="/login" className="text-primary font-bold" onMouseEnter={(e) => e.target.style.color = "var(--primary-dark)"} onMouseLeave={(e) => e.target.style.color = "var(--primary)"}>
-            Sign in
-          </Link>
-        </p>
       </div>
-    </div>
+      <span className="text-center text-sm text-ink-2">
+        Already have an account? <Link to="/login" className="font-semibold">Sign in</Link>
+      </span>
+    </AuthLayout>
   );
 };
 

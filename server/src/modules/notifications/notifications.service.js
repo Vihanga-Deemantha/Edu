@@ -42,3 +42,14 @@ export const markNotificationRead = async ({ notificationId, requesterId, reques
   await notification.save();
   return notification;
 };
+
+/**
+ * PATCH /api/notifications/read-all — the same own-or-linked-child scope as
+ * the list endpoint above, so "mark all read" clears exactly what the
+ * caller can see and nothing else.
+ */
+export const markAllNotificationsRead = async ({ requesterId, requesterRole }) => {
+  const userIds = await resolveOwnedUserIds(requesterId, requesterRole);
+  const result = await Notification.updateMany({ userId: { $in: userIds }, read: false }, { $set: { read: true } });
+  return { updated: result.modifiedCount };
+};

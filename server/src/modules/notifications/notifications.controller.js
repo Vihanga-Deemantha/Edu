@@ -27,3 +27,16 @@ export const markNotificationRead = async (req, res, next) => {
     next(err);
   }
 };
+
+// ─── PATCH /api/notifications/read-all  (protected) ─────────────────────────
+export const markAllNotificationsRead = async (req, res, next) => {
+  try {
+    const result = await notificationsService.markAllNotificationsRead({
+      requesterId: req.user.id,
+      requesterRole: req.user.role,
+    });
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};

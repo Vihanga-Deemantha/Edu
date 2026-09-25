@@ -1,6 +1,9 @@
 import Booking from "../../models/Booking.js";
 import InterestRequest from "../../models/InterestRequest.js";
 import TeacherAvailability from "../../models/TeacherAvailability.js";
+import Listing from "../../models/Listing.js";
+import Payment from "../../models/Payment.js";
+import { summarizeUsers, summarizeTeachers } from "../../utils/presenters.js";
 import ApiError from "../../utils/ApiError.js";
 import { resolveInterestSides, resolveActingSide } from "../interests/interests.service.js";
 import { resolveOwnedUserIds } from "../../utils/familyAccess.js";
@@ -142,7 +145,53 @@ export const getMyBookings = async (requesterId, requesterRole, { page = 1, limi
     Booking.find(filter).sort({ startTime: -1 }).skip(skip).limit(limitNum),
     Booking.countDocuments(filter),
   ]);
-  return { bookings, pagination: { page: pageNum, limit: limitNum, total } };
+  return { bookings: await presentBookings(bookings), pagination: { page: pageNum, limit: limitNum, total } };
+};
+
+/**
+ * Display context for a bookings list: both parties' names, the subject the
+ * underlying interest was about, and the deposit's payment status (latest
+ * Payment for the booking, or null if no checkout was ever started) — all
+ * batch-resolved for the page rather than per row.
+ */
+const presentBookings = async (bookings) => {
+  if (bookings.length === 0) return [];
+  const bookingIds = bookings.map((b) => b._id);
+  const partyIds = bookings.flatMap((b) => [b.teacherId, b.studentId]);
+
+  const [users, teachers, interests, payments] = await Promise.all([
+    summarizeUsers(partyIds),
+    summarizeTeachers(bookings.map((b) => b.teacherId)),
+    InterestRequest.find({ _id: { $in: bookings.map((b) => b.interestRequestId) } }).select("listingId"),
+    Payment.find({ bookingId: { $in: bookingIds } }).sort({ createdAt: -1 }).select("bookingId status amount currency paidAt"),
+  ]);
+  const listings = await Listing.find({ _id: { $in: interests.map((i) => i.listingId) } }).select(
+    "subject grade medium"
+  );
+
+  const listingById = new Map(listings.map((l) => [String(l._id), l]));
+  const listingByInterestId = new Map(interests.map((i) => [String(i._id), listingById.get(String(i.listingId))]));
+  const paymentByBookingId = new Map();
+  for (const payment of payments) {
+    // Sorted newest-first, so the first one seen per booking is the latest.
+    if (!paymentByBookingId.has(String(payment.bookingId))) paymentByBookingId.set(String(payment.bookingId), payment);
+  }
+
+  return bookings.map((booking) => {
+    const teacher = users.get(String(booking.teacherId));
+    const teacherProfile = teachers.get(String(booking.teacherId));
+    const listing = listingByInterestId.get(String(booking.interestRequestId));
+    const payment = paymentByBookingId.get(String(booking._id));
+    return {
+      ...booking.toObject(),
+      teacher: teacher ? { ...teacher, photoUrl: teacherProfile?.photoUrl ?? null } : null,
+      student: users.get(String(booking.studentId)) || null,
+      listing: listing ? { _id: listing._id, subject: listing.subject, grade: listing.grade, medium: listing.medium } : null,
+      payment: payment
+        ? { status: payment.status, amount: payment.amount, currency: payment.currency, paidAt: payment.paidAt }
+        : null,
+    };
+  });
 };
 
 /**

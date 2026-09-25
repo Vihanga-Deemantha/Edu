@@ -15,6 +15,12 @@ const router = Router();
 router.get("/", authenticate, listNotificationsValidation, validate, notificationsController.listNotifications);
 
 /**
+ * PATCH /api/notifications/read-all
+ * Protected — registered before /:id/read so "read-all" is never parsed as an id.
+ */
+router.patch("/read-all", authenticate, notificationsController.markAllNotificationsRead);
+
+/**
  * PATCH /api/notifications/:id/read
  * Protected, owner only — enforced by scoping the lookup to req.user.id in
  * notifications.service.js (404, not 403, for someone else's notification).

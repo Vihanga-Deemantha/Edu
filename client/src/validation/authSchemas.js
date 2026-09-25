@@ -1,19 +1,22 @@
 import { z } from "zod";
 
-// Sri Lanka phone: +94XXXXXXXXX or 0XXXXXXXXX — mirrors backend regex exactly
+// Sri Lanka phone: +94XXXXXXXXX or 0XXXXXXXXX — mirrors backend regex exactly.
+// Spaces are stripped first so "077 123 4567" (the format the design's
+// placeholder shows) validates and is sent in the backend's canonical form.
 const sriLankaPhone = /^(\+94|0)[0-9]{9}$/;
+export const phoneField = z.preprocess(
+  (v) => (typeof v === "string" ? v.replace(/[\s-]/g, "") : v),
+  z
+    .string()
+    .min(1, "Mobile number is required")
+    .regex(sriLankaPhone, "Enter a valid Sri Lankan number, e.g. 077 123 4567")
+);
 
 export const registerSchema = z
   .object({
     name: z.string().min(1, "Name is required"),
     email: z.string().min(1, "Email is required").email("Enter a valid email"),
-    phone: z
-      .string()
-      .min(1, "Phone is required")
-      .regex(
-        sriLankaPhone,
-        "Enter a valid Sri Lankan phone (+94XXXXXXXXX or 0XXXXXXXXX)"
-      ),
+    phone: phoneField,
     password: z
       .string()
       .min(8, "Password must be at least 8 characters"),

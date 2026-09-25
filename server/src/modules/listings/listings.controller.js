@@ -1,5 +1,6 @@
 import * as listingsService from "./listings.service.js";
 import { logEventFromRequest } from "../../services/event.service.js";
+import { attachListingOwners, presentListing } from "../../utils/presenters.js";
 
 // Request validation now happens in the `validate` route middleware
 // (server/src/middleware/validate.js).
@@ -21,7 +22,7 @@ export const createListing = async (req, res, next) => {
 // ─── GET /api/listings/mine  (protected) ─────────────────────────────────────
 export const getMyListings = async (req, res, next) => {
   try {
-    const listings = await listingsService.getMyListings(req.user.id, req.user.role);
+    const listings = await listingsService.getMyListingsWithStats(req.user.id, req.user.role);
     res.status(200).json({ success: true, data: { listings } });
   } catch (err) {
     next(err);
@@ -38,7 +39,7 @@ export const browseListings = async (req, res, next) => {
     // analytics wants to surface later. Fire-and-forget: not awaited.
     logEventFromRequest(req, { action: "search", metadata: { ...req.query } });
 
-    res.status(200).json({ success: true, data: { listings, pagination } });
+    res.status(200).json({ success: true, data: { listings: await attachListingOwners(listings), pagination } });
   } catch (err) {
     next(err);
   }
@@ -58,7 +59,7 @@ export const getListing = async (req, res, next) => {
       metadata: { type: listing.type, subject: listing.subject, grade: listing.grade },
     });
 
-    res.status(200).json({ success: true, data: { listing } });
+    res.status(200).json({ success: true, data: { listing: await presentListing(listing) } });
   } catch (err) {
     next(err);
   }
