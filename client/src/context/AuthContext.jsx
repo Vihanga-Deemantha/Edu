@@ -23,6 +23,19 @@ export const AuthProvider = ({ children }) => {
     setAccessTokenState(token);
   }, []);
 
+  // Login / OTP / Google responses carry a slim user ({ id, ... }); /auth/me
+  // carries the full document (_id, grade, populated linkedChildIds). Pages
+  // rely on the full shape, so every sign-in path finishes by loading /me,
+  // falling back to the slim object (normalized to have _id) if that fails.
+  const loadFullUser = useCallback(async (slimUser) => {
+    try {
+      const meRes = await authApi.me();
+      return meRes.data.data.user;
+    } catch {
+      return slimUser ? { ...slimUser, _id: slimUser._id || slimUser.id } : null;
+    }
+  }, []);
+
   const clearAuth = useCallback(() => {
     clearAccessToken();
     setAccessTokenState(null);
@@ -71,9 +84,10 @@ export const AuthProvider = ({ children }) => {
       const res = await authApi.login(email, password);
       const { user: loggedInUser, accessToken } = res.data.data;
       storeToken(accessToken);
-      setUser(loggedInUser);
+      const fullUser = await loadFullUser(loggedInUser);
+      setUser(fullUser);
       setStatus("authenticated");
-      return loggedInUser;
+      return fullUser;
     } catch (err) {
       // If backend says account not verified, go to OTP flow. The backend
       // now includes the userId on this specific error (see auth.service.js
@@ -107,7 +121,7 @@ export const AuthProvider = ({ children }) => {
 
     if (data.fullyVerified) {
       storeToken(data.accessToken);
-      setUser(data.user);
+      setUser(await loadFullUser(data.user));
       setPendingUserId(null);
       setStatus("authenticated");
     }
@@ -132,7 +146,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     storeToken(data.accessToken);
-    setUser(data.user);
+    setUser(await loadFullUser(data.user));
     setStatus("authenticated");
     return data;
   };

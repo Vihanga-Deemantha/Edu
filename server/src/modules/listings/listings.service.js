@@ -1,7 +1,10 @@
+import mongoose from "mongoose";
 import Listing from "../../models/Listing.js";
 import TeacherProfile from "../../models/TeacherProfile.js";
 import StudentProfile from "../../models/StudentProfile.js";
 import RankingConfig from "../../models/RankingConfig.js";
+import InterestRequest from "../../models/InterestRequest.js";
+import Event from "../../models/Event.js";
 import ApiError from "../../utils/ApiError.js";
 import { isRequesterParentOf, resolveOwnedUserIds } from "../../utils/familyAccess.js";
 import { embedPassage } from "../../services/embedding.service.js";
@@ -216,6 +219,54 @@ export const getMyListings = async (requesterId, requesterRole) => {
   return Listing.find({ ownerId: { $in: ownerIds } }).sort({ createdAt: -1 });
 };
 
+const VIEW_STATS_WINDOW_DAYS = 30;
+
+/**
+ * getMyListings plus per-listing activity for the owner's management view:
+ * interest requests received (total and still-pending) and listing views over
+ * the last 30 days, from Phase 7's Event log. Two grouped aggregations for
+ * the whole set, not one query per listing.
+ */
+export const getMyListingsWithStats = async (requesterId, requesterRole) => {
+  const listings = await getMyListings(requesterId, requesterRole);
+  if (listings.length === 0) return [];
+
+  const ids = listings.map((l) => l._id);
+  const since = new Date(Date.now() - VIEW_STATS_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+  const [interestCounts, viewCounts] = await Promise.all([
+    InterestRequest.aggregate([
+      { $match: { listingId: { $in: ids } } },
+      {
+        $group: {
+          _id: "$listingId",
+          total: { $sum: 1 },
+          pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
+        },
+      },
+    ]),
+    Event.aggregate([
+      { $match: { action: "view_listing", targetId: { $in: ids }, createdAt: { $gte: since } } },
+      { $group: { _id: "$targetId", views: { $sum: 1 } } },
+    ]),
+  ]);
+
+  const interestsById = new Map(interestCounts.map((c) => [String(c._id), c]));
+  const viewsById = new Map(viewCounts.map((c) => [String(c._id), c.views]));
+
+  return listings.map((listing) => {
+    const interests = interestsById.get(String(listing._id));
+    return {
+      ...listing.toObject(),
+      stats: {
+        interestCount: interests?.total || 0,
+        pendingInterestCount: interests?.pending || 0,
+        views30d: viewsById.get(String(listing._id)) || 0,
+      },
+    };
+  });
+};
+
 export const updateListing = async ({ listingId, requesterId, requesterRole, updates }) => {
   const listing = await Listing.findById(listingId);
   if (!listing) {
@@ -387,8 +438,15 @@ const learnedScoreStage = (weights) => ({
  * told you precisely" only holds if both search paths agree on what
  * "precisely" means.
  */
-export const buildListingStructuredFilter = (requester, { subject, grade, medium, curriculum, minPrice, maxPrice } = {}) => {
+export const buildListingStructuredFilter = (
+  requester,
+  { subject, grade, medium, curriculum, minPrice, maxPrice, ownerId } = {}
+) => {
   const filter = { ...publicVisibilityQueryFilter(requester) };
+
+  // One owner's active listings — the public teacher profile page's
+  // "active listings" section. Visibility rules above still apply.
+  if (ownerId) filter.ownerId = new mongoose.Types.ObjectId(String(ownerId));
 
   if (subject) filter.subject = caseInsensitiveExact(subject);
   if (grade) filter.grade = caseInsensitiveExact(grade);

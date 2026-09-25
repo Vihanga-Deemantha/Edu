@@ -7,6 +7,11 @@ import {
   moderateListingValidation,
   listReportsValidation,
   resolveReportValidation,
+  statsValidation,
+  listVerificationsValidation,
+  userIdParamValidation,
+  listUsersValidation,
+  listListingsValidation,
 } from "./admin.validation.js";
 import authenticate from "../../middleware/authenticate.js";
 import authorize from "../../middleware/authorize.js";
@@ -65,5 +70,25 @@ router.get("/reports", listReportsValidation, validate, adminController.getRepor
 
 /** PATCH /api/admin/reports/:id/resolve */
 router.patch("/reports/:id/resolve", resolveReportValidation, validate, adminController.resolveReport);
+
+// ─── Read side for the admin console ─────────────────────────────────────────
+
+/** GET /api/admin/stats — dashboard figures (?rangeDays= scopes the recent ones). */
+router.get("/stats", statsValidation, validate, adminController.getStats);
+
+/** GET /api/admin/verifications — review queue, filterable by status, searchable by name/email. */
+router.get("/verifications", listVerificationsValidation, validate, adminController.listVerifications);
+
+/** GET /api/admin/verifications/:userId — one submission in full, including admin notes. */
+router.get("/verifications/:userId", userIdParamValidation, validate, adminController.getVerificationDetail);
+
+/** GET /api/admin/users — search/filter accounts (child accounts excluded). */
+router.get("/users", listUsersValidation, validate, adminController.listUsers);
+
+/** GET /api/admin/users/:userId/audit — past admin actions against this user. */
+router.get("/users/:userId/audit", userIdParamValidation, validate, adminController.getUserAudit);
+
+/** GET /api/admin/listings — every listing regardless of visibility, for moderation. */
+router.get("/listings", listListingsValidation, validate, adminController.listListings);
 
 export default router;

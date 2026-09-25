@@ -17,7 +17,7 @@ export const upsertTeacherProfile = async (req, res, next) => {
 // ─── GET /api/profiles/teacher/:userId  (public) ─────────────────────────────
 export const getTeacherProfile = async (req, res, next) => {
   try {
-    const profile = await profilesService.getPublicTeacherProfile(req.params.userId);
+    const profile = await profilesService.getPublicTeacherProfileView(req.params.userId);
 
     logEventFromRequest(req, {
       action: "view_profile",

@@ -4,12 +4,12 @@ import { useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import useAuth from "../hooks/useAuth.js";
 import { forgotPasswordSchema } from "../validation/authSchemas.js";
-import FormError from "../components/FormError.jsx";
+import AuthLayout, { AuthHeading, SubmitButton } from "../components/auth/AuthLayout.jsx";
+import { Field } from "../components/ui/index.jsx";
 
 const ForgotPasswordPage = () => {
   const { forgotPassword } = useAuth();
   const navigate = useNavigate();
-
   const {
     register,
     handleSubmit,
@@ -19,57 +19,31 @@ const ForgotPasswordPage = () => {
   const onSubmit = async ({ email }) => {
     try {
       await forgotPassword(email);
-      toast.success("If that email is registered, a reset code is on its way.");
       navigate("/reset-password", { state: { email } });
     } catch {
-      // The backend responds the same way whether or not the account exists,
-      // so a request-level failure here is a real network/server problem —
-      // still don't reveal account existence in the message.
+      // The backend answers identically whether or not the account exists, so
+      // a failure here is a real network/server problem — and the message
+      // still mustn't reveal whether the account exists.
       toast.error("Something went wrong. Please try again.");
     }
   };
 
   return (
-    <div className="auth-container">
-      <div className="bg-blob" />
-
-      <div className="auth-card">
-        <div className="text-center" style={{ marginBottom: "2rem" }}>
-          <div className="auth-icon">🔑</div>
-          <h1 className="text-3xl font-bold" style={{ marginBottom: "0.5rem", color: "var(--text-main)" }}>Forgot your password?</h1>
-          <p className="text-sm text-muted">
-            Enter your email and we&apos;ll send you a 6-digit reset code.
-          </p>
-        </div>
-
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
-          <div className="form-group" style={{ marginBottom: "0" }}>
-            <label htmlFor="fp-email" className="form-label">Email</label>
-            <input
-              id="fp-email"
-              type="email"
-              className={`form-input ${errors.email ? "input-error" : ""}`}
-              placeholder="you@example.com"
-              {...register("email")}
-            />
-            <FormError message={errors.email?.message} />
-          </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary btn-full"
-            style={{ marginTop: "0.5rem" }}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? <span className="btn-spinner" /> : "Send reset code"}
-          </button>
+    <AuthLayout aside={{ title: "It happens to all of us.", sub: "We'll help you get back into your account in a minute." }}>
+      <div className="flex flex-col gap-6">
+        <Link to="/login" className="self-start text-sm font-semibold">← Back to sign in</Link>
+        <AuthHeading title="Forgot your password?" sub="Enter your email and we'll send a 6-digit code to reset it." />
+        <form className="flex flex-col gap-6" onSubmit={handleSubmit(onSubmit)} noValidate>
+          <Field label="Email" error={errors.email?.message}>
+            <input type="email" autoComplete="email" placeholder="you@example.com" className={`input ${errors.email ? "err" : ""}`} {...register("email")} />
+          </Field>
+          <SubmitButton loading={isSubmitting} loadingText="Sending…">Send reset code</SubmitButton>
         </form>
-
-        <p className="text-center text-sm text-muted" style={{ marginTop: "2rem" }}>
-          <Link to="/login" className="text-primary font-bold">← Back to sign in</Link>
-        </p>
       </div>
-    </div>
+      <span className="text-center text-sm text-ink-2">
+        Don't have an account? <Link to="/register" className="font-semibold">Register for free</Link>
+      </span>
+    </AuthLayout>
   );
 };
 

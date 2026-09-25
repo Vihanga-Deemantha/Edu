@@ -117,6 +117,7 @@ export const browseListingsValidation = [
     .optional()
     .isIn(["price", "distance", "newest", "rating", "recommended"])
     .withMessage("sort must be one of: price, distance, newest, rating, recommended"),
+  query("ownerId").optional().isMongoId().withMessage("ownerId must be a valid id"),
   query("page").optional().isInt({ min: 1 }).withMessage("page must be a positive integer"),
   query("limit").optional().isInt({ min: 1, max: 50 }).withMessage("limit must be between 1 and 50"),
 ];

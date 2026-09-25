@@ -1,3 +1,4 @@
+import User from "../../models/User.js";
 import TeacherProfile from "../../models/TeacherProfile.js";
 import StudentProfile from "../../models/StudentProfile.js";
 import TeacherVerification from "../../models/TeacherVerification.js";
@@ -76,6 +77,17 @@ export const getPublicTeacherProfile = async (userId) => {
     throw new ApiError(404, "Teacher profile not found", "PROFILE_NOT_FOUND");
   }
   return profile;
+};
+
+/**
+ * The public profile plus the teacher's display name and join date — the
+ * profile document alone has no name at all, which the public profile page
+ * can't render without. Contact details are deliberately not included.
+ */
+export const getPublicTeacherProfileView = async (userId) => {
+  const profile = await getPublicTeacherProfile(userId);
+  const user = await User.findById(userId).select("name createdAt isActive");
+  return { ...profile.toObject(), name: user?.name ?? null, memberSince: user?.createdAt ?? null };
 };
 
 /**

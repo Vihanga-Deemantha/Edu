@@ -115,7 +115,9 @@ export const viewDocument = async (req, res, next) => {
       throw new ApiError(404, "Document not found", "NOT_FOUND");
     }
 
-    const url = getSignedViewUrl(publicId);
+    // A plain URL (dev, no Cloudinary) is returned as-is; a public_id gets a
+    // short-lived signed URL for the authenticated-delivery asset.
+    const url = /^https?:\/\//i.test(publicId) ? publicId : getSignedViewUrl(publicId);
     res.status(200).json({ success: true, data: { url, expiresInSeconds: 300 } });
   } catch (err) {
     next(err);

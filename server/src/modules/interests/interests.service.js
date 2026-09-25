@@ -2,9 +2,12 @@ import InterestRequest from "../../models/InterestRequest.js";
 import Listing from "../../models/Listing.js";
 import User from "../../models/User.js";
 import TeacherVerification from "../../models/TeacherVerification.js";
+import Review from "../../models/Review.js";
+import Conversation from "../../models/Conversation.js";
 import ApiError from "../../utils/ApiError.js";
 import { isRequesterParentOf, resolveOwnedUserIds } from "../../utils/familyAccess.js";
 import { getListingById } from "../listings/listings.service.js";
+import { summarizeUsers, summarizeTeachers } from "../../utils/presenters.js";
 
 /**
  * Interest requests run in either direction depending on the listing type:
@@ -270,6 +273,29 @@ export const serializeInterestRequest = async (interestRequest) => {
     serialized.fromContact = fromUser ? await resolveContact(fromUser) : null;
     serialized.toContact = toUser ? await resolveContact(toUser) : null;
   }
+
+  // Display context for list views — which listing this is about and who
+  // each side is (names only; contact details stay behind the accept gate
+  // above). hasReview/conversationId let the UI show "Leave a review" and
+  // "Go to chat" without a follow-up request per row.
+  const [listing, users, teachers, review, conversation] = await Promise.all([
+    Listing.findById(interestRequest.listingId).select("type subject grade medium price status"),
+    summarizeUsers([interestRequest.fromUserId, interestRequest.toUserId]),
+    summarizeTeachers([interestRequest.fromUserId, interestRequest.toUserId]),
+    Review.exists({ linkedRequestId: interestRequest._id }),
+    Conversation.findOne({ interestRequestId: interestRequest._id }).select("_id"),
+  ]);
+  const withTeacher = (id) => {
+    const user = users.get(String(id));
+    if (!user) return null;
+    const teacher = teachers.get(String(id));
+    return teacher ? { ...user, photoUrl: teacher.photoUrl, verificationStatus: teacher.verificationStatus } : user;
+  };
+  serialized.listing = listing ? listing.toObject() : null;
+  serialized.fromUser = withTeacher(interestRequest.fromUserId);
+  serialized.toUser = withTeacher(interestRequest.toUserId);
+  serialized.hasReview = Boolean(review);
+  serialized.conversationId = conversation?._id ?? null;
   return serialized;
 };
 

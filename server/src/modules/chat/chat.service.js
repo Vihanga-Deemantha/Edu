@@ -1,5 +1,8 @@
 import Conversation from "../../models/Conversation.js";
 import Message from "../../models/Message.js";
+import InterestRequest from "../../models/InterestRequest.js";
+import Listing from "../../models/Listing.js";
+import { summarizeUsers, summarizeTeachers } from "../../utils/presenters.js";
 import ApiError from "../../utils/ApiError.js";
 import { accountHolderId } from "../../utils/familyAccess.js";
 import { resolveInterestSides } from "../interests/interests.service.js";
@@ -62,8 +65,68 @@ const assertParticipant = async (conversationId, requesterId) => {
  * creation time) — unlike interests/listings/notifications, there's no
  * linked-children id list to also search here.
  */
-export const getMyConversations = (requesterId) =>
-  Conversation.find({ participantIds: requesterId }).sort({ lastMessageAt: -1, createdAt: -1 });
+export const getMyConversations = async (requesterId) => {
+  const conversations = await Conversation.find({ participantIds: requesterId }).sort({
+    lastMessageAt: -1,
+    createdAt: -1,
+  });
+  return presentConversations(conversations, requesterId);
+};
+
+/**
+ * Display context for the conversations list: the other participant's name
+ * (and photo/verification if they're a teacher), the subject of the interest
+ * that opened the conversation, and a preview of the latest message.
+ */
+const presentConversations = async (conversations, requesterId) => {
+  if (conversations.length === 0) return [];
+  const otherIds = conversations.map(
+    (c) => c.participantIds.find((id) => String(id) !== String(requesterId)) || c.participantIds[0]
+  );
+
+  const [users, teachers, interests, lastMessages] = await Promise.all([
+    summarizeUsers(otherIds),
+    summarizeTeachers(otherIds),
+    InterestRequest.find({ _id: { $in: conversations.map((c) => c.interestRequestId) } }).select(
+      "listingId status fromUserId toUserId"
+    ),
+    Message.aggregate([
+      { $match: { conversationId: { $in: conversations.map((c) => c._id) } } },
+      { $sort: { createdAt: -1 } },
+      { $group: { _id: "$conversationId", text: { $first: "$text" }, senderId: { $first: "$senderId" }, createdAt: { $first: "$createdAt" } } },
+    ]),
+  ]);
+  const listings = await Listing.find({ _id: { $in: interests.map((i) => i.listingId) } }).select("subject grade");
+  const childSummaries = await summarizeUsers(interests.flatMap((i) => [i.fromUserId, i.toUserId]));
+
+  const listingById = new Map(listings.map((l) => [String(l._id), l]));
+  const interestById = new Map(interests.map((i) => [String(i._id), i]));
+  const lastByConversation = new Map(lastMessages.map((m) => [String(m._id), m]));
+
+  return conversations.map((conversation, index) => {
+    const otherId = String(otherIds[index]);
+    const other = users.get(otherId);
+    const teacher = teachers.get(otherId);
+    const interest = interestById.get(String(conversation.interestRequestId));
+    const listing = interest ? listingById.get(String(interest.listingId)) : null;
+    // A child-linked conversation runs through the parent's account — name
+    // the child it's about so a parent with several children can tell them apart.
+    const child = interest
+      ? [interest.fromUserId, interest.toUserId].map((id) => childSummaries.get(String(id))).find((u) => u?.isChild)
+      : null;
+    const last = lastByConversation.get(String(conversation._id));
+    return {
+      ...conversation.toObject(),
+      otherParty: other
+        ? { ...other, photoUrl: teacher?.photoUrl ?? null, verificationStatus: teacher?.verificationStatus ?? null }
+        : null,
+      listing: listing ? { _id: listing._id, subject: listing.subject, grade: listing.grade } : null,
+      interestStatus: interest?.status ?? null,
+      child: child ? { _id: child._id, name: child.name } : null,
+      lastMessage: last ? { text: last.text, senderId: last.senderId, createdAt: last.createdAt } : null,
+    };
+  });
+};
 
 /**
  * GET /api/chat/conversations/:id/messages. Paginated newest-first (so

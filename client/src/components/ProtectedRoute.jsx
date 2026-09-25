@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import useAuth from "../hooks/useAuth.js";
+import { PageLoader } from "./ui/index.jsx";
 
 /**
  * ProtectedRoute — role-aware route guard.
@@ -11,11 +12,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   const location = useLocation();
 
   if (status === "loading") {
-    return (
-      <div className="loading-screen">
-        <div className="spinner" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (status === "unauthenticated") {

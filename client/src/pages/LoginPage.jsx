@@ -1,22 +1,24 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
-import { GoogleLogin } from "@react-oauth/google";
 import useAuth from "../hooks/useAuth.js";
 import { loginSchema } from "../validation/authSchemas.js";
-import FormError from "../components/FormError.jsx";
-
-const GOOGLE_ENABLED = import.meta.env.VITE_GOOGLE_SIGNIN_ENABLED === "true";
+import AuthLayout, { AuthHeading, PasswordInput, SubmitButton } from "../components/auth/AuthLayout.jsx";
+import GoogleSignIn from "../components/auth/GoogleSignIn.jsx";
+import { Field } from "../components/ui/index.jsx";
+import { apiError, apiErrorCode } from "../lib/format.js";
 
 const LoginPage = () => {
-  const { login, googleLogin, status } = useAuth();
+  const { login, status, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname;
 
   useEffect(() => {
-    if (status === "authenticated") navigate("/dashboard", { replace: true });
-  }, [status, navigate]);
+    if (status === "authenticated") navigate(user?.role === "admin" ? "/admin" : from || "/dashboard", { replace: true });
+  }, [status, user, from, navigate]);
 
   const {
     register,
@@ -26,109 +28,46 @@ const LoginPage = () => {
 
   const onSubmit = async ({ email, password }) => {
     try {
-      await login(email, password);
-      navigate("/dashboard");
+      const loggedIn = await login(email, password);
+      navigate(loggedIn?.role === "admin" ? "/admin" : from || "/dashboard");
     } catch (err) {
-      const code = err.response?.data?.error?.code;
-      const message = err.response?.data?.error?.message || "Something went wrong. Please try again.";
-
-      if (code === "ACCOUNT_NOT_VERIFIED") {
+      if (apiErrorCode(err) === "ACCOUNT_NOT_VERIFIED") {
         toast.error("Please verify your email and phone before signing in.");
         navigate("/verify-otp");
         return;
       }
-
-      toast.error(message);
-    }
-  };
-
-  const onGoogleSuccess = async (credentialResponse) => {
-    try {
-      const data = await googleLogin(credentialResponse.credential);
-      if (data?.profileIncomplete) {
-        navigate("/complete-profile");
-      } else {
-        navigate("/dashboard");
-      }
-    } catch (err) {
-      const msg = err.response?.data?.error?.message || "Google sign-in failed. Please try again.";
-      toast.error(msg);
+      toast.error(apiError(err));
     }
   };
 
   return (
-    <div className="auth-container">
-      <div className="bg-blob" />
-
-      <div className="auth-card">
-        <div className="text-center" style={{ marginBottom: "2rem" }}>
-          <img src="/edulink-friendly-logo.png" alt="EduLink Logo" style={{ width: "3.5rem", height: "3.5rem", margin: "0 auto 1.25rem", borderRadius: "1rem", boxShadow: "0 4px 12px rgba(79, 125, 243, 0.15)" }} />
-          <h1 className="text-3xl font-bold" style={{ marginBottom: "0.5rem", color: "var(--text-main)" }}>Welcome back</h1>
-          <p className="text-sm text-muted">Sign in to continue to EduLink</p>
-        </div>
-
-        {GOOGLE_ENABLED && (
-          <>
-            <div className="flex justify-center" style={{ marginBottom: "1.25rem" }}>
-              <GoogleLogin
-                onSuccess={onGoogleSuccess}
-                onError={() => toast.error("Google sign-in failed. Please try again.")}
-                useOneTap
-                size="large"
-                shape="rectangular"
-                theme="outline"
-                text="signin_with"
-              />
-            </div>
-            <div className="divider">or</div>
-          </>
-        )}
-
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
-          <div className="form-group" style={{ marginBottom: "0" }}>
-            <label htmlFor="login-email" className="form-label">Email</label>
-            <input
-              id="login-email"
-              type="email"
-              className={`form-input ${errors.email ? "input-error" : ""}`}
-              placeholder="you@example.com"
-              {...register("email")}
-            />
-            <FormError message={errors.email?.message} />
+    <AuthLayout
+      banner={location.state?.banner}
+      aside={{ title: "Welcome back to EduLink.", sub: "Your teachers, messages and upcoming classes are waiting for you." }}
+    >
+      <div className="flex flex-col gap-6">
+        <AuthHeading title="Sign in" sub="Welcome back. Pick up where you left off." />
+        <form className="flex flex-col gap-6" onSubmit={handleSubmit(onSubmit)} noValidate>
+          <div className="flex flex-col gap-[18px]">
+            <Field label="Email" error={errors.email?.message}>
+              <input type="email" autoComplete="email" placeholder="you@example.com" className={`input ${errors.email ? "err" : ""}`} {...register("email")} />
+            </Field>
+            <Field
+              label="Password"
+              error={errors.password?.message}
+              aside={<Link to="/forgot-password" className="text-[13px] font-semibold">Forgot password?</Link>}
+            >
+              <PasswordInput autoComplete="current-password" placeholder="Your password" error={errors.password} {...register("password")} />
+            </Field>
           </div>
-
-          <div className="form-group" style={{ marginBottom: "0" }}>
-            <div className="flex items-center justify-between">
-              <label htmlFor="login-password" className="form-label">Password</label>
-              <Link to="/forgot-password" className="text-xs font-semibold text-primary">Forgot password?</Link>
-            </div>
-            <input
-              id="login-password"
-              type="password"
-              className={`form-input ${errors.password ? "input-error" : ""}`}
-              placeholder="Your password"
-              {...register("password")}
-            />
-            <FormError message={errors.password?.message} />
-          </div>
-
-          <button
-            id="login-submit"
-            type="submit"
-            className="btn btn-primary btn-full"
-            style={{ marginTop: "0.5rem" }}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? <span className="btn-spinner" /> : "Sign In"}
-          </button>
+          <SubmitButton loading={isSubmitting} loadingText="Signing in…">Sign in</SubmitButton>
         </form>
-
-        <p className="text-center text-sm text-muted" style={{ marginTop: "2rem" }}>
-          Don&apos;t have an account?{" "}
-          <Link to="/register" className="text-primary font-bold" onMouseEnter={(e) => e.target.style.color = "var(--primary-dark)"} onMouseLeave={(e) => e.target.style.color = "var(--primary)"}>Create one</Link>
-        </p>
+        <GoogleSignIn text="signin_with" />
       </div>
-    </div>
+      <span className="text-center text-sm text-ink-2">
+        Don't have an account? <Link to="/register" className="font-semibold">Register for free</Link>
+      </span>
+    </AuthLayout>
   );
 };
 
