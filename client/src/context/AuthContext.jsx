@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { authApi } from "../api/authApi.js";
-import { setAccessToken, clearAccessToken } from "../api/axiosInstance.js";
+import { setAccessToken, clearAccessToken, refreshAccessToken } from "../api/axiosInstance.js";
 import { AuthContext } from "./authContext.js";
 
 /**
@@ -45,11 +45,15 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // ── Bootstrap: silent refresh on mount ───────────────────────────────────
+  // Goes through the shared, deduplicated refreshAccessToken() (not a plain
+  // authApi.refresh() call) — see its own comment in axiosInstance.js for
+  // why: without that dedup, this call could race another request's
+  // 401-triggered refresh from the very same initial-render window and
+  // spuriously lose, logging out a user with a perfectly valid session.
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        const refreshRes = await authApi.refresh();
-        const token = refreshRes.data.data.accessToken;
+        const token = await refreshAccessToken();
         storeToken(token);
 
         const meRes = await authApi.me();
