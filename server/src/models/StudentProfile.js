@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { pointSchema } from "../utils/geoSchema.js";
-import { MEDIUM_VALUES } from "../utils/enums.js";
+import { MEDIUM_VALUES, DISTRICT_VALUES } from "../utils/enums.js";
 
 /**
  * StudentProfile — grade/subject/location info for a student or parent-managed
@@ -42,6 +42,11 @@ const studentProfileSchema = new mongoose.Schema(
       required: false,
       default: undefined,
     },
+
+    // Human-readable companion to `location` — see TeacherProfile.js's
+    // identical fields for why this exists alongside, not instead of, coordinates.
+    district: { type: String, enum: [...DISTRICT_VALUES, null], default: null },
+    town: { type: String, trim: true, maxlength: 80, default: null },
   },
   { timestamps: true }
 );

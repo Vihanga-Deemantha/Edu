@@ -153,7 +153,7 @@ const enforceVerificationGate = async (fromUser, toUser, teacherUser) => {
  * updated request purely so the controller can build a notification payload
  * without a redundant fetch of its own.
  */
-export const respondToInterestRequest = async ({ interestId, requesterId, requesterRole, status }) => {
+export const respondToInterestRequest = async ({ interestId, requesterId, requesterRole, status, declineReason }) => {
   const interestRequest = await InterestRequest.findById(interestId);
   if (!interestRequest) {
     throw new ApiError(404, "Interest request not found", "INTEREST_NOT_FOUND");
@@ -181,7 +181,49 @@ export const respondToInterestRequest = async ({ interestId, requesterId, reques
   // runs, so exactly one of two racing requests can ever win.
   const updated = await InterestRequest.findOneAndUpdate(
     { _id: interestRequest._id, status: "pending" },
-    { status, respondedAt: new Date() },
+    {
+      status,
+      respondedAt: new Date(),
+      ...(status === "declined" ? { declineReason: declineReason || null } : {}),
+    },
+    { new: true }
+  );
+  if (!updated) {
+    throw new ApiError(400, "This request has already been responded to.", "INVALID_STATE");
+  }
+
+  const listing = await Listing.findById(updated.listingId).select("subject");
+  return { interestRequest: updated, listing };
+};
+
+// ─── WITHDRAW ────────────────────────────────────────────────────────────────
+
+/**
+ * PATCH /api/interests/:id/withdraw. Only the sending side (or a parent
+ * acting for a linked-child sender) can withdraw, and only while still
+ * pending — once a request has been accepted/declined/completed, the other
+ * party has already acted on it and withdrawing no longer makes sense.
+ * Reuses resolveActingSide rather than a bespoke check so "who counts as the
+ * sender" stays defined in exactly one place.
+ */
+export const withdrawInterestRequest = async ({ interestId, requesterId, requesterRole }) => {
+  const interestRequest = await InterestRequest.findById(interestId);
+  if (!interestRequest) {
+    throw new ApiError(404, "Interest request not found", "INTEREST_NOT_FOUND");
+  }
+
+  const actingSide = await resolveActingSide(requesterId, requesterRole, interestRequest);
+  if (actingSide !== "from") {
+    throw new ApiError(403, "You do not have permission to withdraw this request.", "FORBIDDEN");
+  }
+  if (interestRequest.status !== "pending") {
+    throw new ApiError(400, `This request has already been ${interestRequest.status}.`, "INVALID_STATE");
+  }
+
+  // Atomic — same "only if still pending" race guard as respond()/complete().
+  const updated = await InterestRequest.findOneAndUpdate(
+    { _id: interestRequest._id, status: "pending" },
+    { status: "withdrawn", respondedAt: new Date() },
     { new: true }
   );
   if (!updated) {

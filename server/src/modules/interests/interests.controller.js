@@ -66,12 +66,13 @@ export const respondToInterestRequest = async (req, res, next) => {
       requesterId: req.user.id,
       requesterRole: req.user.role,
       status: req.body.status,
+      declineReason: req.body.declineReason,
     });
 
     enqueueNotificationJob({
       userId: interestRequest.fromUserId,
       type: interestRequest.status === "accepted" ? "interest_accepted" : "interest_declined",
-      payload: { subject: listing.subject },
+      payload: { subject: listing.subject, declineReason: interestRequest.declineReason },
     });
 
     let conversation = null;
@@ -109,6 +110,28 @@ export const respondToInterestRequest = async (req, res, next) => {
       success: true,
       data: { interestRequest: serialized, conversationId: conversation?._id ?? null },
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── PATCH /api/interests/:id/withdraw  (protected, sending side only) ──────
+export const withdrawInterestRequest = async (req, res, next) => {
+  try {
+    const { interestRequest, listing } = await interestsService.withdrawInterestRequest({
+      interestId: req.params.id,
+      requesterId: req.user.id,
+      requesterRole: req.user.role,
+    });
+
+    enqueueNotificationJob({
+      userId: interestRequest.toUserId,
+      type: "interest_withdrawn",
+      payload: { subject: listing.subject },
+    });
+
+    const serialized = await interestsService.serializeInterestRequest(interestRequest);
+    res.status(200).json({ success: true, data: { interestRequest: serialized } });
   } catch (err) {
     next(err);
   }

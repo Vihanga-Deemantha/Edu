@@ -7,7 +7,7 @@ import { EmptyState, Pagination } from "../components/ui/index.jsx";
 import useAsync from "../hooks/useAsync.js";
 import useAuth from "../hooks/useAuth.js";
 import { listingsApi, searchApi } from "../api/endpoints.js";
-import { CURRICULA, GRADES, MEDIUMS, SUBJECTS, apiError, formatNumber } from "../lib/format.js";
+import { CLASS_TYPES, CURRICULA, GRADES, MEDIUMS, SUBJECTS, apiError, classTypeLabel, formatNumber } from "../lib/format.js";
 
 const PER_PAGE = 12;
 const PRICE_MAX = 10000; // slider ceiling; at the ceiling the filter is off
@@ -66,6 +66,8 @@ const BrowsePage = () => {
     grade: params.get("grade") || "",
     medium: params.get("medium") || "",
     curriculum: params.get("curriculum") || "",
+    classType: params.get("classType") || "",
+    verifiedOnly: params.get("verifiedOnly") === "1",
     maxPrice: Number(params.get("maxPrice")) || PRICE_MAX,
     near: params.get("near") === "1",
     radius: Number(params.get("radius")) || 10,
@@ -113,6 +115,8 @@ const BrowsePage = () => {
     grade: f.grade || undefined,
     medium: f.medium || undefined,
     curriculum: f.curriculum || undefined,
+    classType: f.classType || undefined,
+    verifiedOnly: f.verifiedOnly || undefined,
     maxPrice: f.maxPrice < PRICE_MAX ? f.maxPrice : undefined,
   };
   const waitingForLocation = f.near && !coords;
@@ -135,14 +139,18 @@ const BrowsePage = () => {
 
   const chips = useMemo(() => {
     const list = [];
-    ["subject", "grade", "medium", "curriculum"].forEach((k) => {
+    ["subject", "grade", "medium", "curriculum", "classType"].forEach((k) => {
       if (f[k]) {
         const label =
-          k === "medium" ? MEDIUMS.find((m) => m.value === f[k])?.label : k === "curriculum" ? CURRICULA.find((c) => c.value === f[k])?.label : f[k];
+          k === "medium" ? MEDIUMS.find((m) => m.value === f[k])?.label
+          : k === "curriculum" ? CURRICULA.find((c) => c.value === f[k])?.label
+          : k === "classType" ? classTypeLabel(f[k])
+          : f[k];
         list.push({ label, clear: { [k]: "" } });
       }
     });
     if (f.maxPrice < PRICE_MAX) list.push({ label: `Under LKR ${formatNumber(f.maxPrice)}`, clear: { maxPrice: "" } });
+    if (f.verifiedOnly) list.push({ label: "Fully verified only", clear: { verifiedOnly: false } });
     if (f.near) list.push({ label: `Within ${f.radius} km`, clear: { near: false, radius: "" } });
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,6 +219,12 @@ const BrowsePage = () => {
             </FilterGroup>
             <FilterGroup title="CURRICULUM">
               <PillGroup options={CURRICULA} value={f.curriculum} onChange={(v) => update({ curriculum: v })} />
+            </FilterGroup>
+            <FilterGroup title="CLASS TYPE">
+              <PillGroup options={CLASS_TYPES} value={f.classType} onChange={(v) => update({ classType: v })} />
+            </FilterGroup>
+            <FilterGroup title="VERIFICATION">
+              <Toggle label="Fully verified only" on={f.verifiedOnly} onChange={(on) => update({ verifiedOnly: on })} />
             </FilterGroup>
             <FilterGroup title="MAX PRICE" aside={<span className="text-[13px] font-semibold">{f.maxPrice >= PRICE_MAX ? "Any" : `LKR ${formatNumber(f.maxPrice)}`}</span>}>
               <input

@@ -84,6 +84,7 @@ const RegisterPage = () => {
       aside={{
         title: "Start learning with a teacher you can trust.",
         sub: "Join students, parents and verified teachers across Sri Lanka. It takes under two minutes.",
+        illustration: "/design/auth-register.png",
       }}
     >
       <div className="flex flex-col gap-6">

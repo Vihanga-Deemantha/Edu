@@ -13,4 +13,6 @@ export const createReportValidation = [
     .withMessage("reason is required")
     .isLength({ max: 1000 })
     .withMessage("reason must be at most 1000 characters"),
+  // Admin-triaged only (see Report.js) — never client-settable at creation.
+  body("severity").not().exists().withMessage("severity cannot be set directly"),
 ];

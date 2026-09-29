@@ -13,6 +13,24 @@ const FILTERS = [
   ["", "All"],
 ];
 
+const SEVERITY_FILTERS = [
+  ["", "Any severity"],
+  ["high", "High"],
+  ["medium", "Medium"],
+  ["low", "Low"],
+];
+
+const SEVERITY = {
+  high: ["High", "status-danger"],
+  medium: ["Medium", "status-soft"],
+  low: ["Low", "status-muted"],
+};
+
+const SeverityBadge = ({ value }) => {
+  const [text, cls] = SEVERITY[value] || SEVERITY.medium;
+  return <span className={`status ${cls} text-[11px]`}>{text}</span>;
+};
+
 /** One action = resolve/dismiss the report, optionally with a side effect on the target first. */
 const actionsFor = (r) => {
   const base = [{ key: "dismiss", label: "Dismiss", status: "dismissed", tone: "soft" }];
@@ -29,12 +47,17 @@ const AdminReportsPage = () => {
   const { refreshCounts } = useOutletContext();
   const [params, setParams] = useSearchParams();
   const status = params.get("status") ?? "pending";
+  const severity = params.get("severity") || "";
   const q = (params.get("q") || "").toLowerCase();
   const [page, setPage] = useState(1);
   const [acting, setActing] = useState(null); // { report, action }
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
-  const { data, loading, reload } = useAsync(() => adminApi.reports({ status: status || undefined, page, limit: 20 }), [status, page]);
+  const [severityBusyId, setSeverityBusyId] = useState(null);
+  const { data, loading, reload } = useAsync(
+    () => adminApi.reports({ status: status || undefined, severity: severity || undefined, page, limit: 20 }),
+    [status, severity, page]
+  );
 
   if (loading && !data) return <PageLoader />;
   const reports = (data?.reports || []).filter(
@@ -64,6 +87,19 @@ const AdminReportsPage = () => {
     }
   };
 
+  const changeSeverity = async (report, next) => {
+    if (next === report.severity) return;
+    setSeverityBusyId(report._id);
+    try {
+      await adminApi.setReportSeverity(report._id, next);
+      reload();
+    } catch (e) {
+      toast.error(apiError(e));
+    } finally {
+      setSeverityBusyId(null);
+    }
+  };
+
   const targetLine = (r) => {
     const t = r.target;
     if (!t) return <span className="text-ink-2">The reported {r.targetType} no longer exists.</span>;
@@ -74,12 +110,21 @@ const AdminReportsPage = () => {
 
   return (
     <div className="rise flex flex-col gap-3.5">
-      <div className="flex flex-wrap gap-1.5">
-        {FILTERS.map(([k, label]) => (
-          <button key={label} type="button" aria-pressed={status === k} className={`chip font-semibold ${status === k ? "on" : ""}`} onClick={() => { const n = new URLSearchParams(params); n.set("status", k); setParams(n); setPage(1); }}>
-            {label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {FILTERS.map(([k, label]) => (
+            <button key={label} type="button" aria-pressed={status === k} className={`chip font-semibold ${status === k ? "on" : ""}`} onClick={() => { const n = new URLSearchParams(params); n.set("status", k); setParams(n); setPage(1); }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {SEVERITY_FILTERS.map(([k, label]) => (
+            <button key={label} type="button" aria-pressed={severity === k} className={`chip text-[13px] ${severity === k ? "on" : ""}`} onClick={() => { const n = new URLSearchParams(params); if (k) n.set("severity", k); else n.delete("severity"); setParams(n); setPage(1); }}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {reports.map((r) => {
@@ -89,7 +134,26 @@ const AdminReportsPage = () => {
             <div className="flex min-w-0 flex-col gap-1.5" style={{ flex: "1 1 360px" }}>
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={open ? "pending" : r.status} label={open ? "Open" : undefined} className="text-[11px]" />
+                <SeverityBadge value={r.severity} />
                 <span className="text-xs capitalize text-ink-2">{r.targetType} · {relativeTime(r.createdAt)} · #{r._id.slice(-6).toUpperCase()}</span>
+                {open && (
+                  <span className="flex items-center gap-1">
+                    {["high", "medium", "low"].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        aria-pressed={r.severity === s}
+                        disabled={severityBusyId === r._id}
+                        title={`Set severity: ${SEVERITY[s][0]}`}
+                        onClick={() => changeSeverity(r, s)}
+                        className="rounded-full border-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                        style={{ background: r.severity === s ? "var(--ink)" : "var(--tint)", color: r.severity === s ? "#fff" : "var(--ink-2)" }}
+                      >
+                        {s[0]}
+                      </button>
+                    ))}
+                  </span>
+                )}
               </div>
               <span className="serif text-lg font-bold">{r.reason}</span>
               <span className="text-sm text-ink-2">

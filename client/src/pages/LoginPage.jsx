@@ -43,7 +43,7 @@ const LoginPage = () => {
   return (
     <AuthLayout
       banner={location.state?.banner}
-      aside={{ title: "Welcome back to EduLink.", sub: "Your teachers, messages and upcoming classes are waiting for you." }}
+      aside={{ title: "Welcome back to EduLink.", sub: "Your teachers, messages and upcoming classes are waiting for you.", illustration: "/design/auth-login.png" }}
     >
       <div className="flex flex-col gap-6">
         <AuthHeading title="Sign in" sub="Welcome back. Pick up where you left off." />

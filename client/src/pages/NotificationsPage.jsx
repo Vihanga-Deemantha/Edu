@@ -15,6 +15,7 @@ const CATEGORY = {
   interest_accepted: "interests",
   interest_declined: "interests",
   interest_completed: "interests",
+  interest_withdrawn: "interests",
   new_review: "reviews",
   listing_flagged: "listings",
 };
@@ -27,6 +28,7 @@ const CATS = [
 const CTA = {
   interest_received: "Review request",
   interest_accepted: "Open interests",
+  interest_withdrawn: "Open interests",
   interest_completed: "Leave a review",
   new_review: "See your reviews",
   listing_flagged: "View listing",

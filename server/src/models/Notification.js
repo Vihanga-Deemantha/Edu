@@ -5,6 +5,7 @@ export const NOTIFICATION_TYPES = [
   "interest_accepted",
   "interest_declined",
   "interest_completed",
+  "interest_withdrawn",
   "new_review",
   "listing_flagged",
 ];

@@ -50,7 +50,7 @@ const CompleteProfilePage = () => {
   };
 
   return (
-    <AuthLayout aside={{ title: "Nearly there.", sub: "Tell us a little about yourself so we can show you the right teachers." }}>
+    <AuthLayout aside={{ title: "Nearly there.", sub: "Tell us a little about yourself so we can show you the right teachers.", illustration: "/design/auth-complete.png" }}>
       <form className="flex flex-col gap-[22px]" onSubmit={handleSubmit(onSubmit)} noValidate>
         {user?.name && (
           <div className="flex items-center gap-3 rounded-xl border border-line bg-white px-4 py-3.5">

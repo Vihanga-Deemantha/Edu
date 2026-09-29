@@ -73,6 +73,7 @@ const STATUS = {
   completed: ["Completed", "status-outline"],
   resolved: ["Resolved", "status-outline"],
   declined: ["Declined", "status-muted"],
+  withdrawn: ["Withdrawn", "status-muted"],
   cancelled: ["Cancelled", "status-muted"],
   closed: ["Closed", "status-muted"],
   dismissed: ["Dismissed", "status-muted"],

@@ -4,7 +4,8 @@ import { Spinner } from "../ui/index.jsx";
 
 /**
  * Split card from "EduLink Auth v2": the form on the left, a lavender aside
- * on the right whose headline changes per step. No site header on auth pages.
+ * on the right whose headline (and illustration) changes per step. No site
+ * header on auth pages.
  */
 const AuthLayout = ({ aside, children, banner }) => (
   <div
@@ -34,7 +35,7 @@ const AuthLayout = ({ aside, children, banner }) => (
           <h1 style={{ font: "400 clamp(30px,3vw,40px)/1.1 var(--font-display)", letterSpacing: "-.015em", textWrap: "balance" }}>{aside.title}</h1>
           <p className="serif text-[17px] leading-normal" style={{ color: "#2A3163", textWrap: "pretty" }}>{aside.sub}</p>
         </div>
-        <AsideIllustration />
+        <AsideIllustration src={aside.illustration} alt={aside.title} />
         <div className="pointer-events-none relative z-[2] flex flex-col gap-1.5 self-end rounded-[14px] bg-white px-[18px] py-3.5" style={{ boxShadow: "0 16px 30px -16px rgba(22,27,63,.35)" }}>
           {["Verified teachers", "Safe in-app chat", "Parent-managed child accounts"].map((t) => (
             <span key={t} className="flex items-center gap-2 text-[13px] font-semibold">
@@ -48,28 +49,46 @@ const AuthLayout = ({ aside, children, banner }) => (
   </div>
 );
 
-// Stands in for the design's illustration slot: stacked "notice cards" in
-// the brand palette, drawn in CSS so nothing needs to be fetched.
-const AsideIllustration = () => (
-  <div className="absolute z-[1]" style={{ left: "8%", right: "10%", top: "38%", bottom: "22%" }} aria-hidden="true">
-    <div className="absolute rounded-2xl bg-white/60" style={{ inset: "10% 0 0 18%", transform: "rotate(4deg)" }} />
-    <div className="absolute flex flex-col gap-3 rounded-2xl bg-white p-5" style={{ inset: "0 14% 12% 0", boxShadow: "0 20px 40px -20px rgba(22,27,63,.35)" }}>
-      <div className="flex items-center gap-3">
-        <span className="h-11 w-11 rounded-full bg-mist" />
-        <div className="flex flex-1 flex-col gap-1.5">
-          <span className="h-2.5 w-3/5 rounded bg-ink/80" />
-          <span className="h-2 w-2/5 rounded bg-primary/60" />
+// Real per-screen illustration (design_handoff_edulink/images/auth-*.png,
+// dropped into client/public/design/). Falls back to a CSS-drawn "notice
+// card" mock — matching the aside's own palette — if the asset isn't there.
+const AsideIllustration = ({ src, alt }) => {
+  const [failed, setFailed] = useState(false);
+
+  if (src && !failed) {
+    return (
+      <img
+        key={src}
+        src={src}
+        alt={alt || ""}
+        onError={() => setFailed(true)}
+        className="illustration-fade absolute z-[1]"
+        style={{ left: "6%", right: "6%", top: "34%", bottom: "18%", width: "88%", height: "auto", maxHeight: "48%", objectFit: "contain", filter: "drop-shadow(0 20px 30px rgba(22,27,63,.25))" }}
+      />
+    );
+  }
+
+  return (
+    <div className="absolute z-[1]" style={{ left: "8%", right: "10%", top: "38%", bottom: "22%" }} aria-hidden="true">
+      <div className="absolute rounded-2xl bg-white/60" style={{ inset: "10% 0 0 18%", transform: "rotate(4deg)" }} />
+      <div className="absolute flex flex-col gap-3 rounded-2xl bg-white p-5" style={{ inset: "0 14% 12% 0", boxShadow: "0 20px 40px -20px rgba(22,27,63,.35)" }}>
+        <div className="flex items-center gap-3">
+          <span className="h-11 w-11 rounded-full bg-mist" />
+          <div className="flex flex-1 flex-col gap-1.5">
+            <span className="h-2.5 w-3/5 rounded bg-ink/80" />
+            <span className="h-2 w-2/5 rounded bg-primary/60" />
+          </div>
+        </div>
+        <span className="h-2 w-full rounded bg-mist" />
+        <span className="h-2 w-4/5 rounded bg-mist" />
+        <div className="mt-auto flex gap-2">
+          <span className="h-6 w-16 rounded-full bg-mist" />
+          <span className="h-6 w-20 rounded-full bg-primary" />
         </div>
       </div>
-      <span className="h-2 w-full rounded bg-mist" />
-      <span className="h-2 w-4/5 rounded bg-mist" />
-      <div className="mt-auto flex gap-2">
-        <span className="h-6 w-16 rounded-full bg-mist" />
-        <span className="h-6 w-20 rounded-full bg-primary" />
-      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const AuthHeading = ({ eyebrow, title, sub }) => (
   <div className="flex flex-col gap-2">

@@ -438,9 +438,28 @@ const learnedScoreStage = (weights) => ({
  * told you precisely" only holds if both search paths agree on what
  * "precisely" means.
  */
-export const buildListingStructuredFilter = (
+/**
+ * classType and verifiedOnly aren't Listing fields at all — they live on the
+ * owning teacher's TeacherProfile (see TeacherProfile.js's classType/
+ * verificationStatus). Resolving them here means "browse by class type" or
+ * "verified only" turns into an ownerId $in filter, the same way the rest of
+ * buildListingStructuredFilter's constraints compose, rather than needing a
+ * second denormalized copy of these fields on Listing itself. Only ever
+ * meaningful for teacher_ad — a student_ad's owner has no TeacherProfile —
+ * so requesting either one narrows the result set to teacher_ad regardless
+ * of what publicVisibilityQueryFilter alone would have allowed.
+ */
+const resolveTeacherFilterOwnerIds = async ({ classType, verifiedOnly }) => {
+  const profileFilter = {};
+  if (classType) profileFilter.classType = classType;
+  if (verifiedOnly) profileFilter.verificationStatus = "fully_verified";
+  const profiles = await TeacherProfile.find(profileFilter).select("userId");
+  return profiles.map((p) => p.userId);
+};
+
+export const buildListingStructuredFilter = async (
   requester,
-  { subject, grade, medium, curriculum, minPrice, maxPrice, ownerId } = {}
+  { subject, grade, medium, curriculum, minPrice, maxPrice, ownerId, classType, verifiedOnly } = {}
 ) => {
   const filter = { ...publicVisibilityQueryFilter(requester) };
 
@@ -459,13 +478,23 @@ export const buildListingStructuredFilter = (
     if (maxPrice !== undefined) filter["price.amount"].$lte = Number(maxPrice);
   }
 
+  if (classType || verifiedOnly) {
+    filter.type = "teacher_ad";
+    const teacherOwnerIds = await resolveTeacherFilterOwnerIds({ classType, verifiedOnly });
+    // Intersect with a single-owner filter if both were somehow requested
+    // together, rather than letting one silently clobber the other.
+    filter.ownerId = filter.ownerId
+      ? { $in: teacherOwnerIds.filter((id) => String(id) === String(filter.ownerId)) }
+      : { $in: teacherOwnerIds };
+  }
+
   return filter;
 };
 
 export const browseListings = async (requester, query) => {
   const { lat, lng, radiusKm, sort = "newest", page = 1, limit = 20 } = query;
 
-  const filter = buildListingStructuredFilter(requester, query);
+  const filter = await buildListingStructuredFilter(requester, query);
 
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));

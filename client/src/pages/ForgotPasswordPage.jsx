@@ -29,7 +29,7 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <AuthLayout aside={{ title: "It happens to all of us.", sub: "We'll help you get back into your account in a minute." }}>
+    <AuthLayout aside={{ title: "It happens to all of us.", sub: "We'll help you get back into your account in a minute.", illustration: "/design/auth-forgot.png" }}>
       <div className="flex flex-col gap-6">
         <Link to="/login" className="self-start text-sm font-semibold">← Back to sign in</Link>
         <AuthHeading title="Forgot your password?" sub="Enter your email and we'll send a 6-digit code to reset it." />

@@ -48,7 +48,8 @@ export const interestsApi = {
   create: (body) => post("/interests", body),
   sent: (params) => get("/interests/sent", params),
   received: (params) => get("/interests/received", params),
-  respond: (id, status) => patch(`/interests/${id}/respond`, { status }),
+  respond: (id, status, declineReason) => patch(`/interests/${id}/respond`, { status, ...(declineReason ? { declineReason } : {}) }),
+  withdraw: (id) => patch(`/interests/${id}/withdraw`),
   complete: (id) => patch(`/interests/${id}/complete`),
 };
 
@@ -102,4 +103,5 @@ export const adminApi = {
   moderateListing: (id, body) => patch(`/admin/listings/${id}/moderate`, body),
   reports: (params) => get("/admin/reports", params),
   resolveReport: (id, body) => patch(`/admin/reports/${id}/resolve`, body),
+  setReportSeverity: (id, severity) => patch(`/admin/reports/${id}/severity`, { severity }),
 };

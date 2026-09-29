@@ -14,6 +14,14 @@ const FILTERS = [
   ["accepted", "Accepted"],
   ["completed", "Completed"],
   ["declined", "Declined"],
+  ["withdrawn", "Withdrawn"],
+];
+
+const DECLINE_REASONS = [
+  "Not available at this time",
+  "Doesn't match what I'm looking for",
+  "Already found a good fit",
+  "Location doesn't work",
 ];
 
 /** Who's on the other side of an interest, labelled the way a person would say it. */
@@ -83,6 +91,9 @@ const InterestsPage = () => {
   const [filter, setFilter] = useState("all");
   const [selId, setSelId] = useState(null);
   const [declining, setDeclining] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
+  const [declineNote, setDeclineNote] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [booking, setBooking] = useState(null);
   const [myReviews, setMyReviews] = useState({});
@@ -110,12 +121,29 @@ const InterestsPage = () => {
   const respond = async (status) => {
     setBusy(true);
     try {
-      const { interestRequest, conversationId } = await interestsApi.respond(sel._id, status);
+      const reason = status === "declined" ? [declineReason, declineNote.trim()].filter(Boolean).join(" — ").slice(0, 500) : undefined;
+      const { interestRequest, conversationId } = await interestsApi.respond(sel._id, status, reason);
       replace({ ...interestRequest, conversationId: conversationId ?? sel.conversationId, listing: sel.listing, fromUser: sel.fromUser, toUser: sel.toUser });
       toast.success(status === "accepted" ? "Accepted. They've been notified." : "Request declined.");
       setDeclining(false);
+      setDeclineReason("");
+      setDeclineNote("");
     } catch (err) {
       toast.error(apiErrorCode(err) === "TEACHER_NOT_FULLY_VERIFIED" ? "Only fully verified teachers can accept requests for child accounts." : apiError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const withdraw = async () => {
+    setBusy(true);
+    try {
+      const { interestRequest } = await interestsApi.withdraw(sel._id);
+      replace({ ...interestRequest, listing: sel.listing, fromUser: sel.fromUser, toUser: sel.toUser });
+      toast.success("Request withdrawn.");
+      setWithdrawing(false);
+    } catch (err) {
+      toast.error(apiError(err));
     } finally {
       setBusy(false);
     }
@@ -142,7 +170,9 @@ const InterestsPage = () => {
   const history = sel
     ? [
         [box === "sent" ? "Sent" : "Received", sel.createdAt],
-        ...(sel.respondedAt ? [[sel.status === "declined" ? "Declined" : "Accepted", sel.respondedAt]] : []),
+        ...(sel.respondedAt
+          ? [[sel.status === "declined" ? "Declined" : sel.status === "withdrawn" ? "Withdrawn" : "Accepted", sel.respondedAt]]
+          : []),
         ...(sel.status === "completed" ? [["Marked completed", sel.updatedAt]] : []),
         ...(reviewed ? [["Review left", null]] : []),
       ]
@@ -163,7 +193,7 @@ const InterestsPage = () => {
               role="tab"
               aria-selected={box === k}
               className={`seg-item flex items-center gap-2 px-[18px] py-[9px] text-[15px] ${box === k ? "on" : ""}`}
-              onClick={() => { setParams({ tab: k }); setFilter("all"); setSelId(null); setDeclining(false); }}
+              onClick={() => { setParams({ tab: k }); setFilter("all"); setSelId(null); setDeclining(false); setWithdrawing(false); setDeclineReason(""); setDeclineNote(""); }}
             >
               {label}
               {k === "received" && pendingReceived > 0 && <span className="min-w-5 rounded-[10px] bg-primary px-1.5 py-px text-center text-[11px] text-white">{pendingReceived}</span>}
@@ -200,7 +230,7 @@ const InterestsPage = () => {
                 <button
                   key={i._id}
                   type="button"
-                  onClick={() => { setSelId(i._id); setDeclining(false); }}
+                  onClick={() => { setSelId(i._id); setDeclining(false); setWithdrawing(false); setDeclineReason(""); setDeclineNote(""); }}
                   className="divider-row relative flex w-full items-start gap-3.5 border-0 px-[18px] py-4 text-left hover:bg-tint"
                   style={{ background: on ? "var(--page)" : "#fff" }}
                 >
@@ -280,14 +310,40 @@ const InterestsPage = () => {
                   </div>
                 )}
                 {declining && (
-                  <span className="rise text-sm text-ink-2">
-                    Declining lets {firstName(party.name)} know you can't take this on. They'll be notified — this can't be undone.
-                  </span>
+                  <div className="rise flex flex-col gap-3">
+                    <span className="text-sm text-ink-2">
+                      Declining lets {firstName(party.name)} know you can't take this on. They'll be notified — this can't be undone.
+                    </span>
+                    <div className="flex flex-col gap-2">
+                      <span className="eyebrow-muted text-xs">Reason (optional, shared with them)</span>
+                      <div className="flex flex-wrap gap-2">
+                        {DECLINE_REASONS.map((r) => (
+                          <button
+                            key={r}
+                            type="button"
+                            aria-pressed={declineReason === r}
+                            className={`chip text-[13px] ${declineReason === r ? "on" : ""}`}
+                            onClick={() => setDeclineReason((cur) => (cur === r ? "" : r))}
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        rows={2}
+                        maxLength={500}
+                        className="textarea min-h-0 text-sm"
+                        placeholder="Add a short note (optional)"
+                        value={declineNote}
+                        onChange={(e) => setDeclineNote(e.target.value)}
+                      />
+                    </div>
+                  </div>
                 )}
                 <div className="flex flex-wrap justify-end gap-2.5">
                   {declining ? (
                     <>
-                      <button type="button" className="btn btn-ghost" onClick={() => setDeclining(false)}>Cancel</button>
+                      <button type="button" className="btn btn-ghost" onClick={() => { setDeclining(false); setDeclineReason(""); setDeclineNote(""); }}>Cancel</button>
                       <button type="button" className="btn btn-danger" disabled={busy} onClick={() => respond("declined")}>{busy && <Spinner />} Confirm decline</button>
                     </>
                   ) : (
@@ -309,9 +365,26 @@ const InterestsPage = () => {
             )}
 
             {box === "sent" && sel.status === "pending" && (
-              <div className="flex items-center gap-2 border-t border-mist pt-[18px] text-sm text-ink-2">
-                <span className="h-2 w-2 rounded-full bg-blue" />
-                Waiting for {firstName(party.name)} to reply. Most teachers reply within 2 days.
+              <div className="flex flex-col gap-3 border-t border-mist pt-[18px]">
+                <div className="flex items-center gap-2 text-sm text-ink-2">
+                  <span className="h-2 w-2 rounded-full bg-blue" />
+                  Waiting for {firstName(party.name)} to reply. Most teachers reply within 2 days.
+                </div>
+                {withdrawing && (
+                  <span className="rise text-sm text-ink-2">
+                    Withdrawing removes this request — {firstName(party.name)} will be notified. You can send a new one anytime.
+                  </span>
+                )}
+                <div className="flex flex-wrap justify-end gap-2.5">
+                  {withdrawing ? (
+                    <>
+                      <button type="button" className="btn btn-ghost" onClick={() => setWithdrawing(false)}>Cancel</button>
+                      <button type="button" className="btn btn-danger" disabled={busy} onClick={withdraw}>{busy && <Spinner />} Confirm withdraw</button>
+                    </>
+                  ) : (
+                    <button type="button" className="btn btn-soft" onClick={() => setWithdrawing(true)}>Withdraw request</button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -331,9 +404,28 @@ const InterestsPage = () => {
             )}
 
             {sel.status === "declined" && box === "sent" && (
+              <div className="flex flex-col gap-3 border-t border-mist pt-[18px]">
+                {sel.declineReason && (
+                  <div className="flex flex-col gap-1 rounded-xl bg-mist px-4 py-3">
+                    <span className="eyebrow-muted text-xs">Reason given</span>
+                    <span className="text-sm">{sel.declineReason}</span>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-sm text-ink-2">No worries — there are other teachers who match what you need.</span>
+                  <Link to={sel.listing ? `/browse?subject=${encodeURIComponent(sel.listing.subject)}` : "/browse"} className="btn btn-primary">Find similar teachers</Link>
+                </div>
+              </div>
+            )}
+
+            {sel.status === "withdrawn" && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-mist pt-[18px]">
-                <span className="text-sm text-ink-2">No worries — there are other teachers who match what you need.</span>
-                <Link to={sel.listing ? `/browse?subject=${encodeURIComponent(sel.listing.subject)}` : "/browse"} className="btn btn-primary">Find similar teachers</Link>
+                <span className="text-sm text-ink-2">
+                  {box === "sent" ? "You withdrew this request." : `${firstName(party.name)} withdrew this request.`}
+                </span>
+                {box === "sent" && sel.listing && (
+                  <Link to={`/listings/${sel.listing._id}`} className="btn btn-outline">View listing</Link>
+                )}
               </div>
             )}
 

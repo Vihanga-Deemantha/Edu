@@ -10,3 +10,13 @@
 export const MEDIUM_VALUES = ["sinhala", "tamil", "english"];
 
 export const CURRICULUM_VALUES = ["local", "cambridge", "edexcel"];
+
+export const CLASS_TYPE_VALUES = ["individual", "group", "online", "home_visit"];
+
+export const DISTRICT_VALUES = [
+  "Colombo", "Gampaha", "Kalutara", "Kandy", "Matale", "Nuwara Eliya",
+  "Galle", "Matara", "Hambantota", "Jaffna", "Kilinochchi", "Mannar",
+  "Vavuniya", "Mullaitivu", "Batticaloa", "Ampara", "Trincomalee",
+  "Kurunegala", "Puttalam", "Anuradhapura", "Polonnaruwa", "Badulla",
+  "Moneragala", "Ratnapura", "Kegalle",
+];

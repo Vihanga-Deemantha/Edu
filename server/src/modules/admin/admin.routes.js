@@ -7,6 +7,7 @@ import {
   moderateListingValidation,
   listReportsValidation,
   resolveReportValidation,
+  updateReportSeverityValidation,
   statsValidation,
   listVerificationsValidation,
   userIdParamValidation,
@@ -70,6 +71,9 @@ router.get("/reports", listReportsValidation, validate, adminController.getRepor
 
 /** PATCH /api/admin/reports/:id/resolve */
 router.patch("/reports/:id/resolve", resolveReportValidation, validate, adminController.resolveReport);
+
+/** PATCH /api/admin/reports/:id/severity — re-triage independent of resolving. */
+router.patch("/reports/:id/severity", updateReportSeverityValidation, validate, adminController.updateReportSeverity);
 
 // ─── Read side for the admin console ─────────────────────────────────────────
 

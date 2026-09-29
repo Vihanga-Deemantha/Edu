@@ -16,6 +16,11 @@ const reportSchema = new mongoose.Schema(
     targetId: { type: mongoose.Schema.Types.ObjectId, required: true },
     reason: { type: String, required: true, trim: true, maxlength: 1000 },
     status: { type: String, enum: ["pending", "resolved", "dismissed"], default: "pending" },
+    // Admin-triaged, not reporter-set — a reporter has no reliable basis to
+    // judge severity, and a self-reported "high" would just be gameable.
+    // Defaults to "medium" so the queue has a sane sort order before any
+    // admin has looked at a report yet.
+    severity: { type: String, enum: ["low", "medium", "high"], default: "medium" },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
