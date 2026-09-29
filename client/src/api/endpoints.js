@@ -55,6 +55,7 @@ export const interestsApi = {
 
 export const reviewsApi = {
   create: (body) => post("/reviews", body),
+  featured: () => get("/reviews/featured"),
   forTeacher: (teacherId, params) => get(`/reviews/teacher/${teacherId}`, params),
 };
 

@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
+import mongoose from "mongoose";
 import request from "supertest";
 import app from "../../../app.js";
+import Review from "../../../models/Review.js";
 import TeacherVerification from "../../../models/TeacherVerification.js";
 import TeacherProfile from "../../../models/TeacherProfile.js";
 import { registerAndVerify } from "../../../test/helpers.js";
@@ -242,5 +244,36 @@ describe("GET /api/reviews/teacher/:teacherId", () => {
 
     expect(res.body.data.reviews).toHaveLength(2);
     expect(res.body.data.pagination.total).toBe(3);
+  });
+});
+
+describe("GET /api/reviews/featured", () => {
+  it("shows only real written reviews without exposing participant identities", async () => {
+    const teacherId = new mongoose.Types.ObjectId();
+    const reviewerId = new mongoose.Types.ObjectId();
+    await Review.create(Array.from({ length: 6 }, (_, index) => ({
+      teacherId,
+      reviewerId,
+      linkedRequestId: new mongoose.Types.ObjectId(),
+      rating: Math.min(5, index + 1),
+      comment: index === 0 ? "" : `Real review ${index}`,
+    })));
+
+    const res = await request(app).get("/api/reviews/featured");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.reviews).toHaveLength(4);
+    for (const review of res.body.data.reviews) {
+      expect(review.comment).toMatch(/^Real review/);
+      expect(review.reviewerId).toBeUndefined();
+      expect(review.teacherId).toBeUndefined();
+      expect(review.linkedRequestId).toBeUndefined();
+    }
+  });
+
+  it("returns no testimonials when no written reviews exist", async () => {
+    const res = await request(app).get("/api/reviews/featured");
+    expect(res.status).toBe(200);
+    expect(res.body.data.reviews).toEqual([]);
   });
 });

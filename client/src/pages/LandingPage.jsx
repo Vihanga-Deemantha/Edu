@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Brand from "../components/ui/Brand.jsx";
 import Icon from "../components/ui/Icon.jsx";
-import { Avatar, RatingLine, VerifiedBadge } from "../components/ui/index.jsx";
+import { Avatar, RatingLine, Stars, VerifiedBadge } from "../components/ui/index.jsx";
 import { LanguageToggle } from "../components/layout/LanguageSwitcher.jsx";
 import useAuth from "../hooks/useAuth.js";
 import useAsync from "../hooks/useAsync.js";
 import { useReducedMotion } from "../hooks/useReducedMotion.js";
-import { listingsApi } from "../api/endpoints.js";
-import { formatPrice, mediumLabel } from "../lib/format.js";
+import { listingsApi, reviewsApi } from "../api/endpoints.js";
+import { formatDate, formatPrice, mediumLabel } from "../lib/format.js";
 
 const SCENE_MS = 7000;
 
@@ -106,13 +106,6 @@ const ROLES = {
   ],
 };
 
-const STORIES = [
-  { name: "Scholarship prep", role: "PRIMARY SCHOOL", quote: "Explore teachers for Grade 5 scholarship subjects and find a class that fits your child.", img: "/design/cat-maths.png", to: "/browse?subject=Mathematics", bg: "var(--lavender)" },
-  { name: "A/L science", role: "SECONDARY SCHOOL", quote: "Compare Physics, Chemistry and Biology classes by medium, location and price.", img: "/design/cat-science.png", to: "/browse?subject=Science", bg: "var(--blue)" },
-  { name: "Adult learning", role: "LIFELONG LEARNING", quote: "Find language and practical skills classes that work around your schedule.", img: "/design/cat-languages.png", to: "/browse?subject=Languages", bg: "var(--periwinkle)" },
-  { name: "Parent-managed", role: "FAMILY ACCOUNTS", quote: "Manage your child's requests, conversations and bookings from your account.", img: "/design/trust-parent.png", to: "/register?role=parent", bg: "var(--primary)" },
-];
-
 const FOOTER = [
   { h: "LEARN", links: [["Browse teachers", "/browse"], ["Subjects", "/browse"], ["For parents", "/register?role=parent"]] },
   { h: "TEACH", links: [["Become a teacher", "/register?role=teacher"], ["Verification", "/verification"], ["Post a class ad", "/listings/new"]] },
@@ -161,16 +154,21 @@ const LandingHeader = () => {
 
 const photoForSubject = (subject = "") => {
   const matched = CATEGORY_PHOTOS.find((category) => subject.toLowerCase().includes(category.name.toLowerCase()));
-  return `/design/${matched?.img || "cat-science.png"}`;
+  return matched ? `/design/${matched.img}` : null;
 };
 
 const TeacherCard = ({ listing }) => {
   const owner = listing.owner || {};
   const verified = ["id_verified", "fully_verified"].includes(owner.verificationStatus);
+  const subjectPhoto = photoForSubject(listing.subject);
   return (
     <Link to={`/listings/${listing._id}`} className="landing-class-card text-ink hover:text-ink">
       <div className="relative h-[190px] overflow-hidden rounded-[14px] bg-mist">
-        <DesignPhoto src={photoForSubject(listing.subject)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        {subjectPhoto ? (
+          <DesignPhoto src={subjectPhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-primary/10 text-primary"><span className="serif text-[80px] italic">{listing.subject?.[0]}</span></div>
+        )}
         <span className="absolute left-2.5 top-2.5 rounded-full bg-white px-3 py-1 text-xs font-bold text-primary">{listing.mode || "Class available"}</span>
       </div>
       <div className="flex flex-1 flex-col gap-2.5 px-2.5 pb-2 pt-4">
@@ -186,21 +184,6 @@ const TeacherCard = ({ listing }) => {
     </Link>
   );
 };
-
-const SubjectCard = ({ category }) => (
-  <Link to={`/browse?subject=${encodeURIComponent(category.name)}`} className="landing-class-card text-ink hover:text-ink">
-    <div className="relative h-[190px] overflow-hidden rounded-[14px] bg-mist">
-      <DesignPhoto src={`/design/${category.img}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-      <span className="absolute left-2.5 top-2.5 rounded-full bg-white px-3 py-1 text-xs font-bold text-primary">Explore subject</span>
-    </div>
-    <div className="flex flex-1 flex-col gap-2.5 px-2.5 pb-2 pt-4">
-      <span className="text-xs font-bold text-primary">{category.name}</span>
-      <span className="serif text-xl font-bold leading-tight">Find your {category.name.toLowerCase()} class</span>
-      <p className="text-sm leading-relaxed text-ink-2">{category.levels}</p>
-      <div className="mt-auto flex items-center justify-between border-t border-mist pt-3"><span className="text-sm text-ink-2">Browse teachers</span><span className="rounded-full bg-primary px-4 py-2 text-[13px] font-semibold text-white">Explore →</span></div>
-    </div>
-  </Link>
-);
 
 // A design photo that quietly disappears (revealing its colored backdrop)
 // instead of showing a broken-image icon if the asset isn't there yet.
@@ -244,15 +227,17 @@ const LandingPage = () => {
   const scenePct = reducedMotion ? 0 : Math.min(100, (sceneElapsed / SCENE_MS) * 100);
   const currentScene = HERO_SCENES[scene];
 
-  const { data: top, loading } = useAsync(
+  const { data: top, loading, error: classesError, reload: reloadClasses } = useAsync(
     () => listingsApi.browse({ sort: "rating", limit: 6 }),
     []
   );
   const liveClasses = (top?.listings || []).filter((listing) => listing.type === "teacher_ad");
-  const extraSubjects = CATEGORY_PHOTOS.filter((category) =>
-    !liveClasses.some((listing) => listing.subject?.toLowerCase() === category.name.toLowerCase())
-  ).slice(0, Math.max(0, 6 - liveClasses.length));
-  const currentStory = STORIES[storyIndex];
+  const { data: feedback, loading: feedbackLoading, error: feedbackError, reload: reloadFeedback } = useAsync(
+    () => reviewsApi.featured(),
+    []
+  );
+  const reviews = feedback?.reviews || [];
+  const currentReview = reviews[storyIndex % reviews.length];
 
   const moveRail = (direction) => {
     const rail = railRef.current;
@@ -260,7 +245,7 @@ const LandingPage = () => {
     const card = rail.querySelector(".landing-class-card");
     rail.scrollBy({ left: direction * ((card?.getBoundingClientRect().width || 320) + 20), behavior: reducedMotion ? "instant" : "smooth" });
   };
-  const moveStory = (direction) => setStoryIndex((index) => (index + direction + STORIES.length) % STORIES.length);
+  const moveStory = (direction) => setStoryIndex((index) => (index + direction + reviews.length) % reviews.length);
 
   const submit = (e) => {
     e.preventDefault();
@@ -473,19 +458,20 @@ const LandingPage = () => {
             <span className="eyebrow flex items-center gap-2"><span className="h-[1.5px] w-[22px] bg-primary" />EXPLORE CLASSES</span>
             <h2 className="h-section">Classes to <em className="text-primary">explore</em> this term</h2>
           </div>
-          <div className="flex gap-2.5">
+          {liveClasses.length > 1 && <div className="flex gap-2.5">
             <button type="button" onClick={() => moveRail(-1)} aria-label="Previous classes" className="flex h-12 w-12 items-center justify-center rounded-full border-[1.5px] border-lavender bg-white text-ink hover:border-primary hover:text-primary"><Icon name="arrowLeft" size={19} /></button>
             <button type="button" onClick={() => moveRail(1)} aria-label="Next classes" className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white hover:bg-primary-hover"><Icon name="arrowRight" size={19} /></button>
-          </div>
+          </div>}
         </div>
-        <div ref={railRef} className="landing-class-rail no-scrollbar">
-          {loading ? [0, 1, 2].map((index) => <div key={index} className="skeleton h-[440px] rounded-[20px]" />) : (
-            <>
-              {liveClasses.map((listing) => <TeacherCard key={listing._id} listing={listing} />)}
-              {extraSubjects.map((category) => <SubjectCard key={category.name} category={category} />)}
-            </>
-          )}
-        </div>
+        {loading ? (
+          <div className="landing-class-rail no-scrollbar">{[0, 1, 2].map((index) => <div key={index} className="skeleton h-[440px] rounded-[20px]" />)}</div>
+        ) : classesError ? (
+          <div className="card flex flex-wrap items-center justify-between gap-4 p-8"><span>Classes couldn't load right now.</span><button type="button" className="btn btn-primary" onClick={reloadClasses}>Try again</button></div>
+        ) : liveClasses.length ? (
+          <div ref={railRef} className="landing-class-rail no-scrollbar">{liveClasses.map((listing) => <TeacherCard key={listing._id} listing={listing} />)}</div>
+        ) : (
+          <div className="card flex flex-wrap items-center justify-between gap-4 p-8"><span>No classes have been posted yet.</span><Link to="/browse" className="btn btn-primary">Browse the marketplace</Link></div>
+        )}
       </section>
 
       {/* How it works */}
@@ -571,27 +557,37 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="relative overflow-hidden bg-mist">
+      <section className="relative overflow-hidden bg-mist" aria-labelledby="feedback-heading">
         <span className="serif pointer-events-none absolute -top-10 right-[4%] text-[360px] italic leading-none text-lavender opacity-45" aria-hidden="true">“</span>
-        <div className="shell-narrow relative grid items-center gap-14 py-24" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))" }}>
-          <div className="col-span-full flex flex-col gap-3"><span className="eyebrow flex items-center gap-2"><span className="h-[1.5px] w-[22px] bg-primary" />WAYS TO LEARN</span><h2 className="h-section">A path for <em className="text-primary">every learner</em></h2></div>
-          <div className="relative flex items-center justify-center" style={{ height: "clamp(320px,32vw,420px)" }}>
-            <div className="absolute aspect-square max-h-full w-[88%] rounded-full transition-colors duration-700" style={{ background: currentStory.bg }} />
-            <div className="relative aspect-square max-h-[86%] w-[74%] overflow-hidden rounded-full border-8 border-white" style={{ boxShadow: "0 30px 60px -30px rgba(22,27,63,.5)" }}>
-              {STORIES.map((story, index) => <div key={story.name} className="absolute inset-0 transition-opacity duration-700" style={{ opacity: index === storyIndex ? 1 : 0 }}><DesignPhoto src={story.img} alt={index === storyIndex ? `${story.name} learning path` : ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>)}
+        <div className="shell-narrow relative flex flex-col gap-14 py-24">
+          <div className="flex flex-col gap-3"><span className="eyebrow flex items-center gap-2"><span className="h-[1.5px] w-[22px] bg-primary" />USER FEEDBACK</span><h2 id="feedback-heading" className="h-section">Real words from <em className="text-primary">our learners</em></h2></div>
+          {feedbackLoading ? (
+            <div className="skeleton h-[320px] rounded-[28px]" />
+          ) : feedbackError ? (
+            <div className="card flex flex-wrap items-center justify-between gap-4 p-8"><span>Feedback couldn't load right now.</span><button type="button" className="btn btn-primary" onClick={reloadFeedback}>Try again</button></div>
+          ) : currentReview ? (
+            <div className="grid items-center gap-14" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))" }}>
+              <div className="relative flex items-center justify-center" style={{ height: "clamp(320px,32vw,420px)" }}>
+                <div className="absolute aspect-square max-h-full w-[88%] rounded-full bg-lavender" />
+                <div className="relative flex aspect-square max-h-[86%] w-[74%] flex-col items-center justify-center gap-4 rounded-full border-8 border-white bg-primary text-white" style={{ boxShadow: "0 30px 60px -30px rgba(22,27,63,.5)" }}>
+                  <span className="serif text-[110px] leading-none" aria-hidden="true">“</span>
+                  <span className="serif text-[26px]">Verified learner</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-6" aria-live="polite">
+                <Stars value={currentReview.rating} size={22} />
+                <blockquote className="serif max-w-[480px] text-[clamp(24px,2.4vw,32px)] italic leading-[1.4]">“{currentReview.comment}”</blockquote>
+                <div className="flex flex-col gap-1"><span className="serif text-[21px] font-bold">Verified learner</span><span className="text-sm text-ink-2">Completed class · {formatDate(currentReview.createdAt, { month: "long", year: "numeric" })}</span></div>
+                {reviews.length > 1 && <div className="flex items-center gap-4">
+                  <button type="button" onClick={() => moveStory(-1)} aria-label="Previous review" className="flex h-12 w-12 items-center justify-center rounded-full border-[1.5px] border-periwinkle bg-white text-ink hover:border-primary"><Icon name="arrowLeft" size={19} /></button>
+                  <button type="button" onClick={() => moveStory(1)} aria-label="Next review" className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white hover:bg-primary-hover"><Icon name="arrowRight" size={19} /></button>
+                  <span className="serif text-[17px] italic text-ink-2">{storyIndex % reviews.length + 1} / {reviews.length}</span>
+                </div>}
+              </div>
             </div>
-          </div>
-          <div className="flex flex-col gap-6" aria-live="polite">
-            <span className="eyebrow">{currentStory.role}</span>
-            <h3 className="serif text-[clamp(30px,3vw,42px)] leading-tight">{currentStory.name}</h3>
-            <p className="serif max-w-[480px] text-[clamp(24px,2.4vw,32px)] italic leading-[1.4]">{currentStory.quote}</p>
-            <Link to={currentStory.to} className="self-start text-[15px] font-semibold text-primary hover:text-primary-hover">Explore this path →</Link>
-            <div className="flex items-center gap-4">
-              <button type="button" onClick={() => moveStory(-1)} aria-label="Previous learning path" className="flex h-12 w-12 items-center justify-center rounded-full border-[1.5px] border-periwinkle bg-white text-ink hover:border-primary"><Icon name="arrowLeft" size={19} /></button>
-              <button type="button" onClick={() => moveStory(1)} aria-label="Next learning path" className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white hover:bg-primary-hover"><Icon name="arrowRight" size={19} /></button>
-              <span className="serif text-[17px] italic text-ink-2">{storyIndex + 1} / {STORIES.length}</span>
-            </div>
-          </div>
+          ) : (
+            <div className="card flex flex-wrap items-center justify-between gap-4 p-8"><span>Learner feedback will appear after completed classes are reviewed.</span><Link to="/browse" className="btn btn-primary">Explore classes</Link></div>
+          )}
         </div>
       </section>
 
