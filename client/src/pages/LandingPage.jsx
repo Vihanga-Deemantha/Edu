@@ -6,7 +6,6 @@ import { Avatar, RatingLine, VerifiedBadge } from "../components/ui/index.jsx";
 import { LanguageToggle } from "../components/layout/LanguageSwitcher.jsx";
 import useAuth from "../hooks/useAuth.js";
 import useAsync from "../hooks/useAsync.js";
-import useClickOutside from "../hooks/useClickOutside.js";
 import { useReducedMotion } from "../hooks/useReducedMotion.js";
 import { listingsApi } from "../api/endpoints.js";
 import { formatPrice, mediumLabel } from "../lib/format.js";
@@ -25,8 +24,8 @@ const HERO_SCENES = [
     placeholder: "What do you want to learn? e.g. A/L Physics",
     chips: [
       { g: "✓", t: "Fully verified", s: "ID + police clearance", top: "4%", left: "0%", bg: "var(--primary)", fg: "#fff", anim: "floatA 6s ease-in-out infinite" },
-      { g: "★", t: "4.9 · 126 reviews", s: "A/L Physics, Kandy", top: "46%", left: "54%", bg: "var(--mist)", fg: "var(--primary)", anim: "floatB 7s ease-in-out infinite" },
-      { g: "⌖", t: "2.1 km away", s: "Sinhala medium", top: "78%", left: "-2%", bg: "var(--blue)", fg: "#fff", anim: "floatA 8s ease-in-out infinite" },
+      { g: "★", t: "Student reviews", s: "From completed classes", top: "46%", left: "54%", bg: "var(--mist)", fg: "var(--primary)", anim: "floatB 7s ease-in-out infinite" },
+      { g: "⌖", t: "Search nearby", s: "Filter by distance", top: "78%", left: "-2%", bg: "var(--blue)", fg: "#fff", anim: "floatA 8s ease-in-out infinite" },
     ],
   },
   {
@@ -37,8 +36,8 @@ const HERO_SCENES = [
     placeholder: "e.g. Grade 5 scholarship maths near Galle",
     chips: [
       { g: "♥", t: "You see every message", s: "Parent-managed account", top: "6%", left: "-2%", bg: "var(--primary)", fg: "#fff", anim: "floatB 6s ease-in-out infinite" },
-      { g: "✓", t: "Deposit protected", s: "Refunded if cancelled", top: "66%", left: "56%", bg: "var(--mist)", fg: "var(--primary)", anim: "floatA 7s ease-in-out infinite" },
-      { g: "5", t: "Grade 5 Scholarship", s: "32 verified teachers", top: "78%", left: "2%", bg: "var(--lavender)", fg: "var(--ink)", anim: "floatB 8s ease-in-out infinite" },
+      { g: "✓", t: "Trial bookings", s: "Manage your sessions", top: "66%", left: "56%", bg: "var(--mist)", fg: "var(--primary)", anim: "floatA 7s ease-in-out infinite" },
+      { g: "5", t: "Grade 5 Scholarship", s: "Browse available teachers", top: "78%", left: "2%", bg: "var(--lavender)", fg: "var(--ink)", anim: "floatB 8s ease-in-out infinite" },
     ],
   },
   {
@@ -48,7 +47,7 @@ const HERO_SCENES = [
     blobBg: "var(--primary)", blobRadius: "52% 48% 60% 40% / 42% 58% 42% 58%", ctaLabel: "Become a teacher", ctaTo: "/register?role=teacher",
     placeholder: "Search what other teachers offer",
     chips: [
-      { g: "+12", t: "New interests", s: "This week", top: "6%", left: "0%", bg: "var(--mist)", fg: "var(--primary)", anim: "floatA 6s ease-in-out infinite" },
+      { g: "✉", t: "New interests", s: "From matched students", top: "6%", left: "0%", bg: "var(--mist)", fg: "var(--primary)", anim: "floatA 6s ease-in-out infinite" },
       { g: "◷", t: "Set your hours", s: "Weekday evenings", top: "40%", left: "56%", bg: "var(--blue)", fg: "#fff", anim: "floatB 7s ease-in-out infinite" },
       { g: "✓", t: "Verified badge", s: "Unlocks child accounts", top: "78%", left: "-2%", bg: "var(--ink)", fg: "#fff", anim: "floatA 8s ease-in-out infinite" },
     ],
@@ -56,49 +55,38 @@ const HERO_SCENES = [
 ];
 
 const STATS = [
-  { v: "1,200+", l: "Verified teachers" },
-  { v: "40", l: "Subjects taught" },
-  { v: "25", l: "Districts covered" },
-  { v: "3", l: "Languages: සි · த · EN" },
+  { v: "✓", l: "Teacher verification" },
+  { v: "O/L", l: "School to adult learning" },
+  { v: "25", l: "Sri Lankan districts" },
+  { v: "3", l: "Content languages: සි · த · EN" },
 ];
 
 // The second, photo-backed trust section ("Why EduLink") — distinct from
 // the assurance strip right under the hero, which stays icon-only.
 const WHY_TRUST = [
-  { title: "Verified teachers", sub: "Identity and clearance checked before the badge appears." },
-  { title: "Honest reviews", sub: "Only students who completed classes can review." },
-  { title: "Safe in-app chat", sub: "No phone numbers shared up front." },
-  { title: "Parent-first", sub: "Parents manage child accounts and see every conversation." },
+  { icon: "shield", title: "Verified teachers", sub: "Identity and clearance checked before the badge appears." },
+  { icon: "heart", title: "Honest reviews", sub: "Only students who completed classes can review." },
+  { icon: "chat", title: "Safe in-app chat", sub: "No phone numbers shared up front." },
+  { icon: "users", title: "Parent-first", sub: "Parents manage child accounts and see every conversation." },
 ];
 
 const CATEGORY_PHOTOS = [
-  { name: "Mathematics", img: "cat-maths.png", levels: "Grade 6 to A/L Combined Maths", fee: "LKR 6,000" },
-  { name: "Science", img: "cat-science.png", levels: "Physics · Chemistry · Biology", fee: "LKR 7,500" },
-  { name: "English", img: "cat-english.png", levels: "Spoken English to IELTS", fee: "LKR 5,000" },
-  { name: "ICT", img: "cat-ict.png", levels: "O/L, A/L and programming", fee: "LKR 5,500" },
-  { name: "Music", img: "cat-music.png", levels: "Piano, guitar, Eastern music", fee: "LKR 6,500" },
-  { name: "Languages", img: "cat-languages.png", levels: "Sinhala, Tamil, Japanese, French", fee: "LKR 4,500" },
+  { name: "Mathematics", img: "cat-maths.png", levels: "Grade 6 to A/L Combined Maths" },
+  { name: "Science", img: "cat-science.png", levels: "Physics · Chemistry · Biology" },
+  { name: "English", img: "cat-english.png", levels: "Spoken English to IELTS" },
+  { name: "ICT", img: "cat-ict.png", levels: "O/L, A/L and programming" },
+  { name: "Music", img: "cat-music.png", levels: "Piano, guitar, Eastern music" },
+  { name: "Languages", img: "cat-languages.png", levels: "Sinhala, Tamil, Japanese, French" },
 ];
 
-const MENU_SUBJECTS = ["Mathematics", "Science", "English", "ICT", "Music", "Languages"];
-const MENU_LEVELS = ["Primary (Grades 1–5)", "Grades 6–9", "O/L", "A/L", "Adult learners"];
 const CHIPS = ["O/L Maths", "A/L Physics", "Spoken English", "Piano", "Cambridge IGCSE"];
 
 const TRUST = [
-  { g: "✓", title: "Verified teachers", sub: "Identity and qualifications checked before the badge appears." },
-  { g: "★", title: "Honest reviews", sub: "Only students who completed classes can leave a review." },
-  { g: "◎", title: "Safe in-app chat", sub: "Talk on EduLink first. No phone numbers shared up front." },
-  { g: "♥", title: "Parent-first", sub: "Parents manage child accounts and see every conversation." },
+  { icon: "shield", title: "Verified teachers", sub: "Identity and qualifications checked before the badge appears." },
+  { icon: "heart", title: "Honest reviews", sub: "Only students who completed classes can leave a review." },
+  { icon: "chat", title: "Safe in-app chat", sub: "Talk on EduLink first. No phone numbers shared up front." },
+  { icon: "users", title: "Parent-first", sub: "Parents manage child accounts and see every conversation." },
 ];
-
-const TABS = {
-  Mathematics: "From Grade 6 foundations to A/L Combined Maths. Local, Cambridge and Edexcel syllabuses in all three mediums.",
-  Science: "Physics, Chemistry and Biology for O/L and A/L, with practical-focused teachers across the island.",
-  English: "Spoken English, literature, and exam prep from primary school through IELTS for adults.",
-  ICT: "O/L and A/L ICT, programming basics and computer literacy for all ages.",
-  Music: "Piano, guitar, violin and Eastern music, including Trinity and ABRSM grade exams.",
-  Languages: "Sinhala, Tamil, Japanese, French and more — for school, work, or travel.",
-};
 
 const ROLES = {
   Students: [
@@ -119,102 +107,100 @@ const ROLES = {
 };
 
 const STORIES = [
-  { ph: "Grade 5 scholarship", name: "Senuri, 10", role: "Grade 5 scholarship", quote: "My maths teacher makes every class feel like a game." },
-  { ph: "A/L Physical Science", name: "Tharushi W.", role: "A/L Physical Science", quote: "I found a Physics teacher ten minutes from home." },
-  { ph: "IELTS preparation", name: "Mahesh, 34", role: "IELTS preparation", quote: "Evening classes that fit around my job. I got the band I needed." },
-  { ph: "Parent of two", name: "Dilini R.", role: "Parent of two", quote: "I can see every message. That peace of mind matters." },
+  { name: "Scholarship prep", role: "PRIMARY SCHOOL", quote: "Explore teachers for Grade 5 scholarship subjects and find a class that fits your child.", img: "/design/cat-maths.png", to: "/browse?subject=Mathematics", bg: "var(--lavender)" },
+  { name: "A/L science", role: "SECONDARY SCHOOL", quote: "Compare Physics, Chemistry and Biology classes by medium, location and price.", img: "/design/cat-science.png", to: "/browse?subject=Science", bg: "var(--blue)" },
+  { name: "Adult learning", role: "LIFELONG LEARNING", quote: "Find language and practical skills classes that work around your schedule.", img: "/design/cat-languages.png", to: "/browse?subject=Languages", bg: "var(--periwinkle)" },
+  { name: "Parent-managed", role: "FAMILY ACCOUNTS", quote: "Manage your child's requests, conversations and bookings from your account.", img: "/design/trust-parent.png", to: "/register?role=parent", bg: "var(--primary)" },
 ];
 
 const FOOTER = [
   { h: "LEARN", links: [["Browse teachers", "/browse"], ["Subjects", "/browse"], ["For parents", "/register?role=parent"]] },
   { h: "TEACH", links: [["Become a teacher", "/register?role=teacher"], ["Verification", "/verification"], ["Post a class ad", "/listings/new"]] },
-  { h: "EDULINK", links: [["Safety", "mailto:safety@edulink.lk"], ["Privacy", "mailto:hello@edulink.lk"], ["Contact", "mailto:hello@edulink.lk"]] },
+  { h: "EDULINK", links: [["Report a problem", "mailto:safety@edulink.lk"], ["Contact", "mailto:hello@edulink.lk"]] },
 ];
 
 const browseTo = (q) => `/browse?q=${encodeURIComponent(q)}`;
 
 const LandingHeader = () => {
   const { status } = useAuth();
-  const [menu, setMenu] = useState(false);
-  const ref = useRef(null);
-  useClickOutside(ref, () => setMenu(false));
+  const [mobileOpen, setMobileOpen] = useState(false);
   const authed = status === "authenticated";
   return (
     <header className="sticky top-0 z-40 border-b border-line" style={{ background: "rgba(251,250,253,.92)", backdropFilter: "blur(10px)" }}>
       <div className="shell flex items-center gap-[clamp(16px,2.4vw,32px)] whitespace-nowrap" style={{ height: 80 }}>
         <Brand />
-        <div className="relative hidden flex-none text-[15px] font-medium md:block" ref={ref}>
-          <button
-            type="button"
-            onClick={() => setMenu((m) => !m)}
-            aria-expanded={menu}
-            className="flex items-center gap-1.5 rounded-md border-0 bg-transparent px-3 py-2 text-ink hover:bg-mist"
-          >
-            Explore <span className="text-[10px]">▾</span>
-          </button>
-          {menu && (
-            <div className="popover absolute left-0 grid grid-cols-2 gap-6 p-6" style={{ top: 46, width: 520 }}>
-              {[["SUBJECTS", MENU_SUBJECTS], ["BY LEVEL", MENU_LEVELS]].map(([h, items]) => (
-                <div key={h} className="flex flex-col gap-1">
-                  <span className="eyebrow-muted mb-1.5 text-[11px]">{h}</span>
-                  {items.map((m) => (
-                    <Link key={m} to={browseTo(m)} className="rounded-md px-2.5 py-[7px] text-[15px] text-ink hover:bg-mist hover:text-primary">
-                      {m}
-                    </Link>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <nav className="hidden gap-2 text-[15px] font-medium lg:flex">
-          <Link to="/register?role=parent" className="rounded-lg px-3.5 py-[9px] text-ink hover:bg-mist hover:text-ink">For parents</Link>
-          <Link to="/register?role=teacher" className="rounded-lg px-3.5 py-[9px] text-ink hover:bg-mist hover:text-ink">For teachers</Link>
+        <nav className="hidden gap-1 text-[15px] font-medium md:flex">
+          <Link to="/browse" className="landing-nav-link rounded-lg px-3.5 py-[9px] hover:bg-mist">Explore</Link>
+          <a href="#parents" className="landing-nav-link rounded-lg px-3.5 py-[9px] hover:bg-mist">For parents</a>
+          <a href="#teach" className="landing-nav-link rounded-lg px-3.5 py-[9px] hover:bg-mist">For teachers</a>
         </nav>
         <div className="flex-1" />
         <span className="hidden sm:block">
           <LanguageToggle />
         </span>
+        <button type="button" className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-lavender text-primary md:hidden" aria-label={mobileOpen ? "Close menu" : "Open menu"} aria-expanded={mobileOpen} aria-controls="landing-mobile-menu" onClick={() => setMobileOpen((open) => !open)}><Icon name={mobileOpen ? "x" : "menu"} size={20} /></button>
         {authed ? (
-          <Link to="/dashboard" className="btn btn-primary flex-none">Go to dashboard</Link>
+          <Link to="/dashboard" className="btn btn-primary flex-none rounded-full"><span className="hidden sm:inline">Go to dashboard</span><span className="sm:hidden">Dashboard</span></Link>
         ) : (
           <>
-            <Link to="/login" className="flex-none text-[15px] font-semibold text-ink hover:text-primary">Sign in</Link>
-            <Link to="/register" className="btn btn-primary flex-none">Join for free</Link>
+            <Link to="/login" className="hidden flex-none text-[15px] font-semibold text-ink hover:text-primary md:block">Sign in</Link>
+            <Link to="/register" className="btn btn-primary flex-none rounded-full"><span className="max-[379px]:hidden">Join for free</span><span className="min-[380px]:hidden">Join</span></Link>
           </>
         )}
       </div>
+      {mobileOpen && <nav id="landing-mobile-menu" className="popover absolute right-4 top-[72px] flex w-[min(300px,calc(100vw-32px))] flex-col gap-1 p-4 md:hidden" aria-label="Mobile navigation">
+        <Link to="/browse" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">Explore classes</Link>
+        <a href="#parents" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">For parents</a>
+        <a href="#teach" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">For teachers</a>
+        {!authed && <Link to="/login" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">Sign in</Link>}
+        <div className="border-t border-line px-3 pt-3"><LanguageToggle /></div>
+      </nav>}
     </header>
   );
 };
 
+const photoForSubject = (subject = "") => {
+  const matched = CATEGORY_PHOTOS.find((category) => subject.toLowerCase().includes(category.name.toLowerCase()));
+  return `/design/${matched?.img || "cat-science.png"}`;
+};
+
 const TeacherCard = ({ listing }) => {
   const owner = listing.owner || {};
+  const verified = ["id_verified", "fully_verified"].includes(owner.verificationStatus);
   return (
-    <Link to={`/listings/${listing._id}`} className="card card-hover flex flex-col overflow-hidden text-ink hover:text-ink">
-      <div className="h-1 bg-blue" />
-      <div className="flex flex-1 flex-col gap-3.5 p-[22px]">
-        <div className="flex items-center gap-3">
-          <Avatar name={owner.name} src={owner.photoUrl} size={56} />
-          <div className="flex flex-col gap-[3px]">
-            <span className="serif text-[19px] font-bold">{owner.name}</span>
-            <VerifiedBadge tier={owner.verificationStatus} />
-          </div>
-        </div>
-        <div className="text-[15px] font-semibold">{listing.subject} · {listing.grade}</div>
-        <div className="flex flex-wrap gap-1.5">
-          <span className="tag">{mediumLabel(listing.medium)} medium</span>
-          {listing.curriculum && <span className="tag">{listing.curriculum === "local" ? "Local syllabus" : listing.curriculum}</span>}
-        </div>
+    <Link to={`/listings/${listing._id}`} className="landing-class-card text-ink hover:text-ink">
+      <div className="relative h-[190px] overflow-hidden rounded-[14px] bg-mist">
+        <DesignPhoto src={photoForSubject(listing.subject)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <span className="absolute left-2.5 top-2.5 rounded-full bg-white px-3 py-1 text-xs font-bold text-primary">{listing.mode || "Class available"}</span>
+      </div>
+      <div className="flex flex-1 flex-col gap-2.5 px-2.5 pb-2 pt-4">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-2"><span className="font-bold text-primary">{listing.subject}</span><span>{listing.grade}</span><span>{mediumLabel(listing.medium)} medium</span></div>
+        <span className="serif text-xl font-bold leading-tight">{listing.title || `${listing.subject} for ${listing.grade}`}</span>
+        <span className="flex items-center gap-2 text-[13px] text-ink-2"><Avatar name={owner.name} src={owner.photoUrl} size={26} />{owner.name || "Teacher"}{verified && <VerifiedBadge tier={owner.verificationStatus} />}</span>
         <RatingLine avgRating={owner.avgRating} reviewCount={owner.reviewCount} />
-        <div className="mt-auto flex items-center justify-between border-t border-mist pt-3.5">
+        <div className="mt-auto flex items-center justify-between gap-2 border-t border-mist pt-3">
           <span className="serif text-xl">{formatPrice(listing.price) || "Ask for fee"}</span>
-          <span className="text-sm font-semibold text-primary">View →</span>
+          <span className="rounded-full bg-primary px-4 py-2 text-[13px] font-semibold text-white">View class</span>
         </div>
       </div>
     </Link>
   );
 };
+
+const SubjectCard = ({ category }) => (
+  <Link to={`/browse?subject=${encodeURIComponent(category.name)}`} className="landing-class-card text-ink hover:text-ink">
+    <div className="relative h-[190px] overflow-hidden rounded-[14px] bg-mist">
+      <DesignPhoto src={`/design/${category.img}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      <span className="absolute left-2.5 top-2.5 rounded-full bg-white px-3 py-1 text-xs font-bold text-primary">Explore subject</span>
+    </div>
+    <div className="flex flex-1 flex-col gap-2.5 px-2.5 pb-2 pt-4">
+      <span className="text-xs font-bold text-primary">{category.name}</span>
+      <span className="serif text-xl font-bold leading-tight">Find your {category.name.toLowerCase()} class</span>
+      <p className="text-sm leading-relaxed text-ink-2">{category.levels}</p>
+      <div className="mt-auto flex items-center justify-between border-t border-mist pt-3"><span className="text-sm text-ink-2">Browse teachers</span><span className="rounded-full bg-primary px-4 py-2 text-[13px] font-semibold text-white">Explore →</span></div>
+    </div>
+  </Link>
+);
 
 // A design photo that quietly disappears (revealing its colored backdrop)
 // instead of showing a broken-image icon if the asset isn't there yet.
@@ -227,13 +213,14 @@ const DesignPhoto = ({ src, alt, style, className }) => {
 const LandingPage = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState("Mathematics");
   const [role, setRole] = useState("Students");
+  const [storyIndex, setStoryIndex] = useState(0);
   const [scene, setScene] = useState(0);
   const [sceneElapsed, setSceneElapsed] = useState(0);
   const [scenePaused, setScenePaused] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [hoverCat, setHoverCat] = useState(0);
+  const railRef = useRef(null);
   const reducedMotion = useReducedMotion();
 
   // Rotate the hero's role-scene every 7s — paused on hover/focus, and
@@ -257,13 +244,23 @@ const LandingPage = () => {
   const scenePct = reducedMotion ? 0 : Math.min(100, (sceneElapsed / SCENE_MS) * 100);
   const currentScene = HERO_SCENES[scene];
 
-  // Top-rated active teacher ads for the selected subject tab. "Science" and
-  // "Languages" are umbrella tabs, so they fall back to the overall top rated.
-  const tabSubject = ["Science", "Languages"].includes(tab) ? undefined : tab;
   const { data: top, loading } = useAsync(
-    () => listingsApi.browse({ subject: tabSubject, sort: "rating", limit: 3 }),
-    [tabSubject]
+    () => listingsApi.browse({ sort: "rating", limit: 6 }),
+    []
   );
+  const liveClasses = (top?.listings || []).filter((listing) => listing.type === "teacher_ad");
+  const extraSubjects = CATEGORY_PHOTOS.filter((category) =>
+    !liveClasses.some((listing) => listing.subject?.toLowerCase() === category.name.toLowerCase())
+  ).slice(0, Math.max(0, 6 - liveClasses.length));
+  const currentStory = STORIES[storyIndex];
+
+  const moveRail = (direction) => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const card = rail.querySelector(".landing-class-card");
+    rail.scrollBy({ left: direction * ((card?.getBoundingClientRect().width || 320) + 20), behavior: reducedMotion ? "instant" : "smooth" });
+  };
+  const moveStory = (direction) => setStoryIndex((index) => (index + direction + STORIES.length) % STORIES.length);
 
   const submit = (e) => {
     e.preventDefault();
@@ -277,7 +274,7 @@ const LandingPage = () => {
       {/* Hero — rotates through Students / Parents / Teachers scenes every 7s */}
       <section className="relative overflow-hidden" onMouseEnter={() => setScenePaused(true)} onMouseLeave={() => setScenePaused(false)}>
         <div className="pointer-events-none absolute rounded-full bg-mist" style={{ top: -160, right: -120, width: 620, height: 620, opacity: 0.55 }} />
-        <div className="shell-narrow relative grid items-center gap-12 pb-8 pt-[72px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 460px), 1fr))" }}>
+        <div className="shell-narrow relative grid items-center gap-12 pb-[72px] pt-[clamp(40px,6vw,80px)]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 480px), 1fr))" }}>
           <div className="flex min-w-0 flex-col gap-6">
             <div className="grid">
               {HERO_SCENES.map((sc, i) => {
@@ -342,7 +339,7 @@ const LandingPage = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-5">
-              <Link to={currentScene.ctaTo} className="flex items-center gap-2.5 rounded-full px-[26px] py-3.5 text-[15px] font-semibold text-white hover:opacity-90" style={{ background: "var(--ink)" }}>
+              <Link to={currentScene.ctaTo} className="flex items-center gap-2.5 rounded-full px-[26px] py-3.5 text-[15px] font-semibold hover:opacity-90" style={{ background: "var(--ink)", color: "#fff" }}>
                 {currentScene.ctaLabel} <span>→</span>
               </Link>
               <div className="flex items-end gap-[18px]">
@@ -372,6 +369,7 @@ const LandingPage = () => {
                 </div>
               ))}
             </div>
+            <svg width="92" height="40" viewBox="0 0 92 40" fill="none" stroke="var(--primary)" strokeWidth="1.6" strokeLinecap="round" className="pointer-events-none absolute left-0 top-[16%]" aria-hidden="true"><path d="M2 30c10-18 18 8 28-6s16-18 24-4 14 10 22-4 8-12 14-10" /></svg>
             {HERO_SCENES.map((sc, i) => (
               <div key={sc.role} aria-hidden={i !== scene} className="pointer-events-none absolute inset-0" style={{ opacity: i === scene ? 1 : 0, transition: "opacity .8s ease" }}>
                 {sc.chips.map((ch) => (
@@ -403,14 +401,14 @@ const LandingPage = () => {
       </section>
 
       {/* Trust strip */}
-      <section className="bg-mist">
-        <div className="shell-narrow grid gap-7 py-9" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-          {TRUST.map((t) => (
-            <div key={t.title} className="flex items-start gap-3.5">
-              <div className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-white text-lg font-bold text-primary">{t.g}</div>
+      <section className="border-y border-line bg-white">
+        <div className="shell-narrow grid py-[26px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+          {TRUST.map((t, index) => (
+            <div key={t.title} className="flex items-center gap-3.5 border-l px-[22px] py-1.5" style={{ borderColor: index === 0 ? "transparent" : "var(--line)" }}>
+              <Icon name={t.icon} size={26} strokeWidth={1.4} className="text-primary" />
               <div className="flex flex-col gap-[3px]">
-                <span className="serif text-lg font-bold">{t.title}</span>
-                <span className="text-sm leading-snug text-ink-2">{t.sub}</span>
+                <span className="serif text-base font-bold">{t.title}</span>
+                <span className="text-[13px] leading-snug text-ink-2">{t.sub}</span>
               </div>
             </div>
           ))}
@@ -462,69 +460,41 @@ const LandingPage = () => {
               ))}
             </div>
             <div className="pointer-events-none absolute flex flex-col gap-0.5 rounded-2xl bg-white px-5 py-4" style={{ left: -18, bottom: 28, boxShadow: "0 20px 40px -18px rgba(22,27,63,.4)" }}>
-              <span className="text-[11px] font-bold tracking-[.12em] text-ink-2">TYPICAL FEE</span>
-              <span className="serif text-2xl">
-                {CATEGORY_PHOTOS[hoverCat].fee} <span className="font-sans text-[13px] text-ink-2">/ month</span>
-              </span>
+              <span className="text-[11px] font-bold tracking-[.12em] text-ink-2">EXPLORE SUBJECT</span>
+              <span className="serif text-2xl">{CATEGORY_PHOTOS[hoverCat].name}</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Top rated, by subject */}
-      <section className="shell-narrow flex flex-col gap-7 pb-24 pt-16">
-        <div className="flex flex-col gap-2.5">
-          <span className="eyebrow">Popular now</span>
-          <h2 className="h-section">Top-rated teachers, by subject</h2>
-        </div>
-        <div className="flex flex-wrap gap-2" role="tablist">
-          {Object.keys(TABS).map((label) => {
-            const on = label === tab;
-            return (
-              <button
-                key={label}
-                type="button"
-                role="tab"
-                aria-selected={on}
-                onClick={() => setTab(label)}
-                className="rounded-lg border px-[18px] py-2.5 text-[15px] font-semibold transition-colors"
-                style={{ background: on ? "var(--ink)" : "#fff", color: on ? "#fff" : "var(--ink)", borderColor: on ? "var(--ink)" : "var(--line)" }}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))" }}>
-          <div className="card-dark flex flex-col gap-4 p-8">
-            <span className="serif text-[34px] leading-tight">{tab}</span>
-            <p className="text-[15px] leading-relaxed text-on-dark">{TABS[tab]}</p>
-            <Link to={tabSubject ? `/browse?subject=${encodeURIComponent(tab)}` : browseTo(tab)} className="btn btn-light mt-auto">
-              See all {tab} teachers
-            </Link>
+      <section className="shell-narrow flex flex-col gap-8 pb-20 pt-24">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex flex-col gap-3">
+            <span className="eyebrow flex items-center gap-2"><span className="h-[1.5px] w-[22px] bg-primary" />EXPLORE CLASSES</span>
+            <h2 className="h-section">Classes to <em className="text-primary">explore</em> this term</h2>
           </div>
-          {loading &&
-            [0, 1, 2].map((i) => <div key={i} className="skeleton" style={{ minHeight: 300, borderRadius: 16 }} />)}
-          {!loading && top?.listings?.map((l) => <TeacherCard key={l._id} listing={l} />)}
-          {!loading && top?.listings?.length === 0 && (
-            <div className="card flex flex-col items-center justify-center gap-2 p-8 text-center" style={{ gridColumn: "span 2" }}>
-              <span className="serif text-[22px]">Teachers are joining now</span>
-              <span className="text-sm text-ink-2">Be one of the first {tab} teachers on EduLink.</span>
-              <Link to="/register?role=teacher" className="btn btn-outline btn-sm mt-2">Become a teacher</Link>
-            </div>
+          <div className="flex gap-2.5">
+            <button type="button" onClick={() => moveRail(-1)} aria-label="Previous classes" className="flex h-12 w-12 items-center justify-center rounded-full border-[1.5px] border-lavender bg-white text-ink hover:border-primary hover:text-primary"><Icon name="arrowLeft" size={19} /></button>
+            <button type="button" onClick={() => moveRail(1)} aria-label="Next classes" className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white hover:bg-primary-hover"><Icon name="arrowRight" size={19} /></button>
+          </div>
+        </div>
+        <div ref={railRef} className="landing-class-rail no-scrollbar">
+          {loading ? [0, 1, 2].map((index) => <div key={index} className="skeleton h-[440px] rounded-[20px]" />) : (
+            <>
+              {liveClasses.map((listing) => <TeacherCard key={listing._id} listing={listing} />)}
+              {extraSubjects.map((category) => <SubjectCard key={category.name} category={category} />)}
+            </>
           )}
         </div>
       </section>
 
       {/* How it works */}
-      <section className="bg-mist">
-        <div className="shell-narrow flex flex-col gap-10 py-24">
-          <div className="flex flex-wrap items-end justify-between gap-5">
-            <div className="flex flex-col gap-2.5">
-              <span className="eyebrow">How it works</span>
-              <h2 className="h-section">Three steps to better learning</h2>
-            </div>
-            <div className="flex rounded-[10px] border bg-white p-1" style={{ borderColor: "var(--lavender)" }} role="tablist">
+      <section id="how" className="bg-mist">
+        <div className="shell-narrow flex flex-col gap-12 py-24">
+          <div className="flex flex-col items-center gap-[18px] text-center">
+            <span className="eyebrow flex items-center gap-2"><span className="h-[1.5px] w-[22px] bg-primary" />HOW IT WORKS<span className="h-[1.5px] w-[22px] bg-primary" /></span>
+            <h2 className="h-section">Three steps to <em className="text-primary">better learning</em></h2>
+            <div className="flex rounded-full border border-lavender bg-white p-1" role="tablist">
               {Object.keys(ROLES).map((label) => {
                 const on = label === role;
                 return (
@@ -534,7 +504,7 @@ const LandingPage = () => {
                     role="tab"
                     aria-selected={on}
                     onClick={() => setRole(label)}
-                    className="rounded-[7px] border-0 px-[18px] py-2.5 text-[15px] font-semibold transition-colors"
+                    className="rounded-full border-0 px-5 py-2.5 text-[15px] font-semibold transition-colors"
                     style={{ background: on ? "var(--primary)" : "transparent", color: on ? "#fff" : "var(--ink)" }}
                   >
                     {label}
@@ -543,12 +513,13 @@ const LandingPage = () => {
               })}
             </div>
           </div>
-          <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
+          <div className="landing-steps relative grid gap-6" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))" }}>
+            <div className="landing-step-line pointer-events-none absolute left-[16%] right-[16%] top-11 border-t-[1.5px] border-dashed border-periwinkle" />
             {ROLES[role].map(([title, desc], i) => (
-              <div key={title} className="flex flex-col gap-3.5 rounded-2xl bg-white p-8">
-                <span className="serif text-[52px] italic leading-none text-lavender">0{i + 1}</span>
+              <div key={title} className="relative flex flex-col items-center gap-3.5 px-3 text-center">
+                <span className="serif flex h-[88px] w-[88px] items-center justify-center rounded-full border-[6px] border-mist text-[36px] italic" style={{ background: i === 1 ? "var(--primary)" : "var(--lavender)", color: i === 1 ? "#fff" : "var(--ink)", boxShadow: "0 16px 32px -16px rgba(22,27,63,.45)" }}>0{i + 1}</span>
                 <span className="serif text-[23px] font-bold leading-tight">{title}</span>
-                <span className="text-[15px] leading-relaxed text-ink-2">{desc}</span>
+                <span className="max-w-[320px] text-[15px] leading-relaxed text-ink-2">{desc}</span>
               </div>
             ))}
           </div>
@@ -556,7 +527,7 @@ const LandingPage = () => {
       </section>
 
       {/* Why EduLink — the photo-backed trust section */}
-      <section className="shell-narrow py-24">
+      <section id="parents" className="shell-narrow py-[104px]">
         <div className="grid items-center gap-16" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 440px), 1fr))" }}>
           <div className="relative" style={{ height: "clamp(420px,42vw,540px)" }}>
             <div className="absolute overflow-hidden rounded-3xl bg-lavender" style={{ left: 0, top: 0, width: "52%", height: "62%" }}>
@@ -565,15 +536,16 @@ const LandingPage = () => {
             <div className="absolute overflow-hidden rounded-3xl border-8" style={{ right: 0, bottom: 0, width: "58%", height: "70%", background: "var(--blue)", borderColor: "var(--page)" }}>
               <DesignPhoto src="/design/trust-student-v2.png" alt="Student following an online Physics lesson" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 62%", display: "block" }} />
             </div>
+            <svg width="80" height="60" viewBox="0 0 80 60" fill="none" stroke="var(--primary)" strokeWidth="1.6" strokeLinecap="round" className="pointer-events-none absolute left-[44%] top-[6%]" aria-hidden="true"><path d="M4 50C14 20 40 8 70 12" /><path d="m62 4 9 8-9 8" /></svg>
             <div className="pointer-events-none absolute flex flex-col gap-0.5 rounded-2xl bg-white px-5 py-4" style={{ left: "4%", bottom: "6%", boxShadow: "0 20px 40px -18px rgba(22,27,63,.4)", animation: "floatA 7s ease-in-out infinite" }}>
-              <span className="serif text-[34px] leading-none text-primary">1,200+</span>
-              <span className="text-[13px] text-ink-2">Verified teachers</span>
+              <span className="serif text-[34px] leading-none text-primary">✓</span>
+              <span className="text-[13px] text-ink-2">Teacher verification</span>
             </div>
             <div className="pointer-events-none absolute flex items-center gap-2.5 rounded-full bg-white py-2.5 pl-2.5 pr-4" style={{ right: "6%", top: "12%", boxShadow: "0 18px 36px -16px rgba(22,27,63,.4)", animation: "floatB 6s ease-in-out infinite" }}>
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">✓</span>
               <span className="flex flex-col leading-tight">
-                <span className="text-[13px] font-bold">Deposit protected</span>
-                <span className="text-[11px] text-ink-2">Refunded if a class is cancelled</span>
+                <span className="text-[13px] font-bold">Trial bookings</span>
+                <span className="text-[11px] text-ink-2">Keep track of your sessions</span>
               </span>
             </div>
           </div>
@@ -582,11 +554,11 @@ const LandingPage = () => {
               <span className="eyebrow flex items-center gap-2"><span className="h-[1.5px] w-[22px] bg-primary" />WHY EDULINK</span>
               <h2 className="h-section">Built on trust, designed for <em className="text-primary">peace of mind</em></h2>
             </div>
-            <p className="lede max-w-[520px]">Every teacher is checked, every conversation stays on the platform, and parents stay in control of their child's account.</p>
+            <p className="lede max-w-[520px]">Teacher verification is clearly marked, conversations stay on the platform, and parents stay in control of their child's account.</p>
             <div className="grid gap-[22px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
               {WHY_TRUST.map((t) => (
                 <div key={t.title} className="flex items-start gap-3.5">
-                  <span className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-2xl bg-mist text-primary">✓</span>
+                  <span className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-2xl bg-mist text-primary"><Icon name={t.icon} size={22} strokeWidth={1.5} /></span>
                   <div className="flex flex-col gap-[3px]">
                     <span className="serif text-lg font-bold">{t.title}</span>
                     <span className="text-sm leading-snug text-ink-2">{t.sub}</span>
@@ -599,67 +571,59 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Stories */}
-      <section className="shell-narrow flex flex-col gap-9 py-24">
-        <div className="flex max-w-[640px] flex-col gap-2.5">
-          <span className="eyebrow">Stories</span>
-          <h2 className="h-section">Learners of every age, one place to start</h2>
-        </div>
-        <div className="grid gap-[18px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))" }}>
-          {STORIES.map((p, i) => (
-            <div key={p.name} className="relative overflow-hidden rounded-2xl bg-ink" style={{ height: 420 }}>
-              <div
-                className="absolute inset-0"
-                style={{ background: `linear-gradient(${150 + i * 25}deg, var(--primary), var(--blue) 55%, var(--lavender))` }}
-                aria-hidden="true"
-              />
-              <div className="serif absolute right-5 top-4 text-[120px] italic leading-none text-white opacity-15" aria-hidden="true">“</div>
-              <div className="absolute inset-x-0 bottom-0 flex flex-col gap-2.5 px-[22px] pb-[22px] pt-20 text-white" style={{ background: "linear-gradient(to top, rgba(22,27,63,.94) 45%, rgba(22,27,63,0))" }}>
-                <span className="serif text-[17px] italic leading-snug">“{p.quote}”</span>
-                <div>
-                  <div className="serif text-xl font-bold">{p.name}</div>
-                  <div className="text-[13px] text-lavender">{p.role}</div>
-                </div>
-              </div>
+      <section className="relative overflow-hidden bg-mist">
+        <span className="serif pointer-events-none absolute -top-10 right-[4%] text-[360px] italic leading-none text-lavender opacity-45" aria-hidden="true">“</span>
+        <div className="shell-narrow relative grid items-center gap-14 py-24" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))" }}>
+          <div className="col-span-full flex flex-col gap-3"><span className="eyebrow flex items-center gap-2"><span className="h-[1.5px] w-[22px] bg-primary" />WAYS TO LEARN</span><h2 className="h-section">A path for <em className="text-primary">every learner</em></h2></div>
+          <div className="relative flex items-center justify-center" style={{ height: "clamp(320px,32vw,420px)" }}>
+            <div className="absolute aspect-square max-h-full w-[88%] rounded-full transition-colors duration-700" style={{ background: currentStory.bg }} />
+            <div className="relative aspect-square max-h-[86%] w-[74%] overflow-hidden rounded-full border-8 border-white" style={{ boxShadow: "0 30px 60px -30px rgba(22,27,63,.5)" }}>
+              {STORIES.map((story, index) => <div key={story.name} className="absolute inset-0 transition-opacity duration-700" style={{ opacity: index === storyIndex ? 1 : 0 }}><DesignPhoto src={story.img} alt={index === storyIndex ? `${story.name} learning path` : ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>)}
             </div>
-          ))}
+          </div>
+          <div className="flex flex-col gap-6" aria-live="polite">
+            <span className="eyebrow">{currentStory.role}</span>
+            <h3 className="serif text-[clamp(30px,3vw,42px)] leading-tight">{currentStory.name}</h3>
+            <p className="serif max-w-[480px] text-[clamp(24px,2.4vw,32px)] italic leading-[1.4]">{currentStory.quote}</p>
+            <Link to={currentStory.to} className="self-start text-[15px] font-semibold text-primary hover:text-primary-hover">Explore this path →</Link>
+            <div className="flex items-center gap-4">
+              <button type="button" onClick={() => moveStory(-1)} aria-label="Previous learning path" className="flex h-12 w-12 items-center justify-center rounded-full border-[1.5px] border-periwinkle bg-white text-ink hover:border-primary"><Icon name="arrowLeft" size={19} /></button>
+              <button type="button" onClick={() => moveStory(1)} aria-label="Next learning path" className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white hover:bg-primary-hover"><Icon name="arrowRight" size={19} /></button>
+              <span className="serif text-[17px] italic text-ink-2">{storyIndex + 1} / {STORIES.length}</span>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* For teachers */}
-      <section className="bg-mist">
-        <div className="shell-narrow grid items-center gap-14 py-[88px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))" }}>
-          <div className="relative" style={{ height: "clamp(320px,34vw,420px)" }}>
-            <div className="absolute rounded-[50%_50%_24px_24px] bg-lavender" style={{ inset: "8% 6% 0" }} />
-            <div className="absolute overflow-hidden rounded-b-3xl bg-gradient-to-br from-ink to-primary" style={{ inset: "0 6% 0" }}>
-              <DesignPhoto
-                src="/design/teach-panel.png"
-                alt="Smiling teacher holding a folder"
-                style={{ position: "absolute", left: 0, right: 0, bottom: 0, width: "100%", height: "100%", objectFit: "contain", objectPosition: "center bottom", filter: "drop-shadow(0 20px 28px rgba(22,27,63,.3))" }}
-              />
-            </div>
-            <div className="pointer-events-none absolute flex items-center gap-2.5 rounded-full bg-white py-2.5 pl-2.5 pr-4 text-ink" style={{ left: 0, bottom: "14%", boxShadow: "0 18px 36px -16px rgba(22,27,63,.5)", animation: "floatA 6s ease-in-out infinite" }}>
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-mist text-sm font-bold text-primary">+12</span>
-              <span className="flex flex-col leading-tight">
-                <span className="text-[13px] font-bold">New interests</span>
-                <span className="text-[11px] text-ink-2">This week</span>
-              </span>
-            </div>
-          </div>
-          <div className="flex flex-col gap-[22px]">
-            <span className="eyebrow">For teachers</span>
-            <h2 style={{ font: "400 48px/1.08 var(--font-display)", letterSpacing: "-.01em" }}>Teach on EduLink</h2>
-            <p className="max-w-[480px] text-[19px] leading-relaxed text-ink-2 serif">
+      <section id="teach" className="shell-narrow py-[104px]">
+        <div className="relative grid items-center gap-10 overflow-hidden rounded-[32px] bg-primary p-[clamp(32px,5vw,64px)] text-white" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 380px), 1fr))" }}>
+          <div className="pointer-events-none absolute -bottom-[120px] -right-20 h-[420px] w-[420px] rounded-full bg-blue opacity-50" />
+          <div className="pointer-events-none absolute -top-[60px] right-[120px] h-40 w-40 rounded-full border-[1.5px] border-dashed border-lavender" />
+          <div className="relative flex flex-col gap-[22px]">
+            <span className="eyebrow flex items-center gap-2 text-lavender"><span className="h-[1.5px] w-[22px] bg-lavender" />FOR TEACHERS</span>
+            <h2 style={{ font: "400 clamp(36px,4vw,52px)/1.08 var(--font-display)", letterSpacing: "-.01em" }}>Share what you know. <em className="text-mist">Teach on EduLink.</em></h2>
+            <p className="serif max-w-[480px] text-[19px] leading-relaxed text-mist">
               Post your subject ads, get verified, and receive interest from students and parents who match what you teach.
             </p>
             <div className="flex flex-col gap-2.5 text-[15px]">
               {["Free to create a profile and post ads", "Matched student leads, delivered to your dashboard", "Set weekly availability; students book trial classes"].map((t) => (
-                <span key={t} className="flex gap-2.5"><span className="text-primary">✓</span>{t}</span>
+                <span key={t} className="flex gap-2.5"><span className="text-lavender">✓</span>{t}</span>
               ))}
             </div>
             <div className="mt-1.5 flex flex-wrap gap-3">
-              <Link to="/register?role=teacher" className="btn btn-primary btn-lg">Become a teacher</Link>
-              <Link to="/verification" className="btn btn-outline btn-lg">How verification works</Link>
+              <Link to="/register?role=teacher" className="btn btn-light btn-lg rounded-full">Become a teacher</Link>
+              <Link to="/verification" className="btn btn-lg rounded-full border-lavender bg-transparent hover:border-white" style={{ color: "#fff" }}>How verification works</Link>
+            </div>
+          </div>
+          <div className="relative" style={{ height: "clamp(320px,34vw,420px)" }}>
+            <div className="absolute rounded-[50%_50%_24px_24px] bg-lavender" style={{ inset: "8% 6% 0" }} />
+            <div className="absolute overflow-hidden rounded-b-3xl" style={{ inset: "0 6% 0" }}>
+              <DesignPhoto src="/design/teach-panel.png" alt="Smiling teacher holding a folder" style={{ position: "absolute", left: 0, right: 0, bottom: 0, width: "100%", height: "100%", objectFit: "contain", objectPosition: "center bottom", filter: "drop-shadow(0 20px 28px rgba(22,27,63,.3))" }} />
+            </div>
+            <div className="pointer-events-none absolute flex items-center gap-2.5 rounded-full bg-white py-2.5 pl-2.5 pr-4 text-ink" style={{ left: 0, bottom: "14%", boxShadow: "0 18px 36px -16px rgba(22,27,63,.5)", animation: reducedMotion ? "none" : "floatA 6s ease-in-out infinite" }}>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-mist text-sm font-bold text-primary">✉</span>
+              <span className="flex flex-col leading-tight"><span className="text-[13px] font-bold">New interests</span><span className="text-[11px] text-ink-2">From matched students</span></span>
             </div>
           </div>
         </div>
@@ -677,9 +641,9 @@ const LandingPage = () => {
               <span className="mb-1 text-xs font-bold tracking-[.12em]">{col.h}</span>
               {col.links.map(([label, to]) =>
                 to.startsWith("mailto:") ? (
-                  <a key={label} href={to} className="text-lavender hover:text-white">{label}</a>
+                  <a key={label} href={to} className="landing-footer-link">{label}</a>
                 ) : (
-                  <Link key={label} to={to} className="text-lavender hover:text-white">{label}</Link>
+                  <Link key={label} to={to} className="landing-footer-link">{label}</Link>
                 )
               )}
             </div>

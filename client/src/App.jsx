@@ -1,40 +1,43 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AppShell from "./components/layout/AppShell.jsx";
 import AdminLayout from "./components/layout/AdminLayout.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
-import RegisterPage from "./pages/RegisterPage.jsx";
-import LoginPage from "./pages/LoginPage.jsx";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
-import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
-import VerifyOtpPage from "./pages/VerifyOtpPage.jsx";
-import CompleteProfilePage from "./pages/CompleteProfilePage.jsx";
-import DashboardPage from "./pages/DashboardPage.jsx";
-import ChildAccountPage from "./pages/ChildAccountPage.jsx";
-import BrowsePage from "./pages/BrowsePage.jsx";
-import ListingDetailPage from "./pages/ListingDetailPage.jsx";
-import TeacherProfilePage from "./pages/TeacherProfilePage.jsx";
-import ProfileEditPage from "./pages/ProfileEditPage.jsx";
-import VerificationPage from "./pages/VerificationPage.jsx";
-import PostListingPage from "./pages/PostListingPage.jsx";
-import MyListingsPage from "./pages/MyListingsPage.jsx";
-import NotificationsPage from "./pages/NotificationsPage.jsx";
-import InterestsPage from "./pages/InterestsPage.jsx";
-import ChatPage from "./pages/ChatPage.jsx";
-import AvailabilityPage from "./pages/AvailabilityPage.jsx";
-import BookingsPage from "./pages/BookingsPage.jsx";
-import AdminDashboardPage from "./pages/admin/AdminDashboardPage.jsx";
-import AdminVerificationPage from "./pages/admin/AdminVerificationPage.jsx";
-import AdminReportsPage from "./pages/admin/AdminReportsPage.jsx";
-import AdminUsersPage from "./pages/admin/AdminUsersPage.jsx";
-import AdminListingsPage from "./pages/admin/AdminListingsPage.jsx";
-import { ErrorState } from "./components/ui/index.jsx";
+import { ErrorState, PageLoader } from "./components/ui/index.jsx";
+
+const RegisterPage = lazy(() => import("./pages/RegisterPage.jsx"));
+const LoginPage = lazy(() => import("./pages/LoginPage.jsx"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage.jsx"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage.jsx"));
+const VerifyOtpPage = lazy(() => import("./pages/VerifyOtpPage.jsx"));
+const CompleteProfilePage = lazy(() => import("./pages/CompleteProfilePage.jsx"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage.jsx"));
+const ChildAccountPage = lazy(() => import("./pages/ChildAccountPage.jsx"));
+const BrowsePage = lazy(() => import("./pages/BrowsePage.jsx"));
+const ListingDetailPage = lazy(() => import("./pages/ListingDetailPage.jsx"));
+const TeacherProfilePage = lazy(() => import("./pages/TeacherProfilePage.jsx"));
+const ProfileEditPage = lazy(() => import("./pages/ProfileEditPage.jsx"));
+const VerificationPage = lazy(() => import("./pages/VerificationPage.jsx"));
+const PostListingPage = lazy(() => import("./pages/PostListingPage.jsx"));
+const MyListingsPage = lazy(() => import("./pages/MyListingsPage.jsx"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage.jsx"));
+const InterestsPage = lazy(() => import("./pages/InterestsPage.jsx"));
+const ChatPage = lazy(() => import("./pages/ChatPage.jsx"));
+const AvailabilityPage = lazy(() => import("./pages/AvailabilityPage.jsx"));
+const BookingsPage = lazy(() => import("./pages/BookingsPage.jsx"));
+const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage.jsx"));
+const AdminVerificationPage = lazy(() => import("./pages/admin/AdminVerificationPage.jsx"));
+const AdminReportsPage = lazy(() => import("./pages/admin/AdminReportsPage.jsx"));
+const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage.jsx"));
+const AdminListingsPage = lazy(() => import("./pages/admin/AdminListingsPage.jsx"));
 
 const guard = (element, allowedRoles) => <ProtectedRoute allowedRoles={allowedRoles}>{element}</ProtectedRoute>;
 
 const App = () => (
   <>
+    <Suspense fallback={<PageLoader />}>
     <Routes>
       <Route path="/" element={<LandingPage />} />
 
@@ -87,6 +90,7 @@ const App = () => (
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
     </Routes>
+    </Suspense>
 
     <Toaster
       position="bottom-center"

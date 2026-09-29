@@ -9,7 +9,7 @@ import { Spinner } from "../ui/index.jsx";
  */
 const AuthLayout = ({ aside, children, banner }) => (
   <div
-    className="flex min-h-screen items-center justify-center px-4 py-12 sm:px-6"
+    className="flex min-h-screen items-center justify-center px-4 pb-[88px] pt-12 sm:px-6"
     style={{ background: "linear-gradient(160deg, #EDE8F5 0%, #F7F5FB 45%, #E2E7F6 100%)" }}
   >
     <div
@@ -18,9 +18,7 @@ const AuthLayout = ({ aside, children, banner }) => (
     >
       <main className="relative z-[3] flex flex-col justify-center py-14" style={{ flex: "1 1 420px", paddingInline: "clamp(28px,6vw,88px)" }}>
         <div className="flex w-full max-w-[380px] flex-col gap-[26px]">
-          <Link to="/" className="self-start text-[22px] font-bold tracking-[-.01em] text-blue serif">
-            Edu<span className="text-primary">Link</span>
-          </Link>
+          <Link to="/" className="self-start"><img src="/design/logo-full.png" alt="EduLink" className="h-[34px] w-auto" /></Link>
           {banner && (
             <div className="rise flex items-center gap-3 rounded-[10px] border bg-mist px-4 py-3.5 text-sm font-medium" style={{ borderColor: "var(--lavender)" }}>
               <span className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full bg-primary text-xs text-white">✓</span>
@@ -30,13 +28,13 @@ const AuthLayout = ({ aside, children, banner }) => (
           {children}
         </div>
       </main>
-      <aside className="relative hidden flex-col justify-between gap-6 bg-lavender px-11 py-12 md:flex" style={{ flex: "1 1 380px", minHeight: 420 }}>
+      <aside className="relative flex flex-col gap-[18px] overflow-hidden px-10 pb-9 pt-11" style={{ flex: "1 1 380px", minHeight: 560, background: "#D9D6F8" }}>
         <div className="relative z-[2] flex max-w-[380px] flex-col gap-2.5">
           <h1 style={{ font: "400 clamp(30px,3vw,40px)/1.1 var(--font-display)", letterSpacing: "-.015em", textWrap: "balance" }}>{aside.title}</h1>
           <p className="serif text-[17px] leading-normal" style={{ color: "#2A3163", textWrap: "pretty" }}>{aside.sub}</p>
         </div>
-        <AsideIllustration src={aside.illustration} alt={aside.title} />
-        <div className="pointer-events-none relative z-[2] flex flex-col gap-1.5 self-end rounded-[14px] bg-white px-[18px] py-3.5" style={{ boxShadow: "0 16px 30px -16px rgba(22,27,63,.35)" }}>
+        <div className="relative -mx-5 min-h-[300px] flex-1"><AsideIllustration src={aside.illustration} alt={aside.title} /></div>
+        <div className="pointer-events-none relative z-[2] flex flex-col gap-1.5 self-stretch rounded-[14px] bg-white px-[18px] py-3.5" style={{ boxShadow: "0 16px 30px -16px rgba(22,27,63,.35)" }}>
           {["Verified teachers", "Safe in-app chat", "Parent-managed child accounts"].map((t) => (
             <span key={t} className="flex items-center gap-2 text-[13px] font-semibold">
               <span className="text-primary">✓</span>
@@ -62,14 +60,14 @@ const AsideIllustration = ({ src, alt }) => {
         src={src}
         alt={alt || ""}
         onError={() => setFailed(true)}
-        className="illustration-fade absolute z-[1]"
-        style={{ left: "6%", right: "6%", top: "34%", bottom: "18%", width: "88%", height: "auto", maxHeight: "48%", objectFit: "contain", filter: "drop-shadow(0 20px 30px rgba(22,27,63,.25))" }}
+        className="illustration-fade absolute inset-0 h-full w-full object-contain object-bottom"
+        style={{ WebkitMaskImage: "radial-gradient(ellipse 72% 68% at 50% 58%,#000 62%,transparent 100%)", maskImage: "radial-gradient(ellipse 72% 68% at 50% 58%,#000 62%,transparent 100%)" }}
       />
     );
   }
 
   return (
-    <div className="absolute z-[1]" style={{ left: "8%", right: "10%", top: "38%", bottom: "22%" }} aria-hidden="true">
+    <div className="absolute z-[1]" style={{ left: "8%", right: "10%", top: "8%", bottom: "8%" }} aria-hidden="true">
       <div className="absolute rounded-2xl bg-white/60" style={{ inset: "10% 0 0 18%", transform: "rotate(4deg)" }} />
       <div className="absolute flex flex-col gap-3 rounded-2xl bg-white p-5" style={{ inset: "0 14% 12% 0", boxShadow: "0 20px 40px -20px rgba(22,27,63,.35)" }}>
         <div className="flex items-center gap-3">
