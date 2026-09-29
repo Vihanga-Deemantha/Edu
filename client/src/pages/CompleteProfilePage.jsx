@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate, Link } from "react-router-dom";
@@ -33,11 +33,11 @@ const CompleteProfilePage = () => {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(schema), defaultValues: { role: "" } });
-  const role = watch("role");
+  const role = useWatch({ control, name: "role" });
 
   const onSubmit = async ({ role: r, phone }) => {
     try {

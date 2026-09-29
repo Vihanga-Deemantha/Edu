@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { LanguageToggle } from "./LanguageSwitcher.jsx";
 
-/** Compact footer used on every signed-in page (the landing has its own). */
+/** Compact footer for marketplace browsing and home pages. */
 const AppFooter = () => (
   <footer className="mt-auto bg-ink text-white">
     <div className="shell flex flex-wrap items-center justify-between gap-x-8 gap-y-[18px] py-7">

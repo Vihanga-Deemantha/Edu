@@ -31,3 +31,12 @@ export const getTeacherReviews = async (req, res, next) => {
     next(err);
   }
 };
+
+export const getFeaturedReviews = async (req, res, next) => {
+  try {
+    const reviews = await reviewsService.getFeaturedReviews();
+    res.status(200).json({ success: true, data: { reviews } });
+  } catch (err) {
+    next(err);
+  }
+};

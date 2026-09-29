@@ -163,9 +163,11 @@ const AppHeader = () => {
   return (
     <header className="sticky top-0 z-40 border-b border-line" style={{ background: "rgba(251,250,253,.94)", backdropFilter: "blur(10px)" }}>
       <div className="shell flex items-center gap-[clamp(14px,2vw,28px)] whitespace-nowrap" style={{ height: 80 }}>
-        <button type="button" className="btn btn-ghost -ml-2 p-2 lg:hidden" aria-label="Open menu" onClick={() => setDrawer(true)}>
-          <Icon name="menu" />
-        </button>
+        <span className="lg:hidden">
+          <button type="button" className="btn btn-ghost -ml-2 p-2" aria-label="Open menu" onClick={() => setDrawer(true)}>
+            <Icon name="menu" />
+          </button>
+        </span>
         <Brand to={authed ? "/dashboard" : "/"} />
         <nav className="hidden flex-none gap-1 lg:flex" aria-label="Primary">
           {nav.map(([label, to]) => (
@@ -189,9 +191,9 @@ const AppHeader = () => {
             <Link to="/login" className="flex-none text-[15px] font-semibold text-ink hover:text-primary">
               Sign in
             </Link>
-            <Link to="/register" className="btn btn-primary hidden flex-none sm:inline-flex">
-              Join for free
-            </Link>
+            <span className="hidden flex-none sm:inline-flex">
+              <Link to="/register" className="btn btn-primary">Join for free</Link>
+            </span>
           </>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -20,9 +20,10 @@ const ResetPasswordPage = () => {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(resetPasswordSchema) });
+  const newPassword = useWatch({ control, name: "newPassword" });
 
   const onSubmit = async ({ code, newPassword }) => {
     if (!email.trim()) {
@@ -69,7 +70,7 @@ const ResetPasswordPage = () => {
           </Field>
           <Field label="New password" error={errors.newPassword?.message}>
             <PasswordInput autoComplete="new-password" placeholder="At least 8 characters" error={errors.newPassword} {...register("newPassword")} />
-            <StrengthMeter password={watch("newPassword")} />
+            <StrengthMeter password={newPassword} />
           </Field>
           <Field label="Confirm new password" error={errors.confirmPassword?.message}>
             <input type="password" autoComplete="new-password" placeholder="Re-enter new password" className={`input ${errors.confirmPassword ? "err" : ""}`} {...register("confirmPassword")} />

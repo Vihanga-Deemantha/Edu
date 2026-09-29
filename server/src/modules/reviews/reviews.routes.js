@@ -13,6 +13,8 @@ const router = Router();
  */
 router.post("/", authenticate, createReviewValidation, validate, reviewsController.createReview);
 
+router.get("/featured", reviewsController.getFeaturedReviews);
+
 /**
  * GET /api/reviews/teacher/:teacherId
  * Public, paginated — the trust-mechanism read path for a teacher's profile page.

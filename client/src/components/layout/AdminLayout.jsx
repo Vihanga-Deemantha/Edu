@@ -134,9 +134,11 @@ const AdminLayout = () => {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 border-b border-line" style={{ background: "rgba(246,244,250,.94)", backdropFilter: "blur(10px)" }}>
           <div className="flex items-center gap-5 px-[clamp(16px,3vw,32px)]" style={{ height: 80 }}>
-            <button type="button" className="btn btn-ghost -ml-2 p-2 lg:hidden" aria-label="Open menu" onClick={() => setDrawer(true)}>
-              <Icon name="menu" />
-            </button>
+            <span className="lg:hidden">
+              <button type="button" className="btn btn-ghost -ml-2 p-2" aria-label="Open menu" onClick={() => setDrawer(true)}>
+                <Icon name="menu" />
+              </button>
+            </span>
             <form onSubmit={submitSearch} role="search" className="flex h-11 items-center gap-2.5 rounded-full border border-line bg-white px-4" style={{ flex: "0 1 420px" }}>
               <Icon name="search" size={18} strokeWidth={2} className="text-primary" />
               <input

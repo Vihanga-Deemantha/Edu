@@ -93,3 +93,13 @@ export const getTeacherReviews = async (teacherId, { page = 1, limit = 20 } = {}
 
   return { reviews, pagination: { page: pageNum, limit: limitNum, total } };
 };
+
+export const getFeaturedReviews = async () => {
+  const reviews = await Review.find({ comment: { $type: "string", $ne: "" } })
+    .select("rating comment createdAt")
+    .sort({ createdAt: -1 })
+    .limit(4)
+    .lean();
+
+  return reviews;
+};

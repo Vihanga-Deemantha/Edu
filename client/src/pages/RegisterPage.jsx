@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -52,12 +52,12 @@ const RegisterPage = () => {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(registerSchema), defaultValues: { role: initialRole } });
-  const role = watch("role");
-  const password = watch("password");
+  const role = useWatch({ control, name: "role" });
+  const password = useWatch({ control, name: "password" });
 
   const onSubmit = async (data) => {
     try {
@@ -144,7 +144,7 @@ const RegisterPage = () => {
               <SubmitButton loading={isSubmitting} loadingText="Creating account…">Create account</SubmitButton>
             </div>
             <span className="text-center text-[13px] leading-normal text-ink-2">
-              By creating an account you agree to our Terms and Privacy Policy.
+              We use your email and phone to verify your account.
             </span>
           </form>
         )}

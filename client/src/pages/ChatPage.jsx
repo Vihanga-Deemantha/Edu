@@ -236,7 +236,7 @@ const ChatPage = () => {
         ) : (
           <>
             <div className="flex flex-none items-center gap-3.5 border-b border-line bg-white px-6 py-3.5">
-              <Link to="/chat" className="btn btn-ghost -ml-3 p-2 md:hidden" aria-label="Back to conversations"><Icon name="arrowLeft" /></Link>
+              <span className="md:hidden"><Link to="/chat" className="btn btn-ghost -ml-3 p-2" aria-label="Back to conversations"><Icon name="arrowLeft" /></Link></span>
               <Avatar name={other?.name} src={other?.photoUrl} size={44} solid />
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <div className="flex flex-wrap items-center gap-2">
@@ -248,9 +248,11 @@ const ChatPage = () => {
                   {active?.child ? ` · for ${active.child.name}` : ""}
                 </span>
               </div>
-              <button type="button" onClick={() => setShowInfo((s) => !s)} className="btn btn-soft btn-sm hidden lg:inline-flex" style={{ background: showInfo ? "var(--mist)" : "#fff" }}>
-                {showInfo ? "Hide details" : "Details"}
-              </button>
+              <span className="hidden lg:inline-flex">
+                <button type="button" onClick={() => setShowInfo((s) => !s)} className="btn btn-soft btn-sm" style={{ background: showInfo ? "var(--mist)" : "#fff" }}>
+                  {showInfo ? "Hide details" : "Details"}
+                </button>
+              </span>
             </div>
 
             <div

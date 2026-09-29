@@ -200,7 +200,7 @@ const BrowsePage = () => {
 
       <div className="shell flex flex-wrap items-start gap-8 pb-20 pt-8">
         {filtersOpen && (
-          <aside className="card flex flex-col px-5 pb-5 pt-1.5" style={{ flex: "1 1 240px", maxWidth: 300, minWidth: 230 }} aria-label="Filters">
+          <aside className="card flex w-full flex-col px-5 pb-5 pt-1.5 md:max-w-[300px]" style={{ flex: "1 1 240px", minWidth: 230 }} aria-label="Filters">
             <div className="flex items-center justify-between pb-3 pt-4">
               <span className="serif text-xl font-bold">Filters</span>
               <button type="button" onClick={resetAll} className="border-0 bg-transparent text-[13px] font-semibold text-primary">Reset all</button>
