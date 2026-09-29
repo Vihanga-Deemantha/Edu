@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from
 import Brand from "../ui/Brand.jsx";
 import Icon from "../ui/Icon.jsx";
 import { Avatar } from "../ui/index.jsx";
+import NotificationBell from "./NotificationBell.jsx";
 import useAuth from "../../hooks/useAuth.js";
 import useAsync from "../../hooks/useAsync.js";
 import { adminApi } from "../../api/endpoints.js";
@@ -147,7 +148,8 @@ const AdminLayout = () => {
               />
             </form>
             <div className="flex-1" />
-            <div className="flex flex-none items-center gap-2.5">
+            <div className="flex flex-none items-center gap-3.5">
+              <NotificationBell />
               <Avatar name={user.name} size={40} solid />
               <div className="hidden flex-col leading-tight sm:flex">
                 <span className="text-sm font-bold">{user.name}</span>

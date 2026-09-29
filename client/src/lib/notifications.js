@@ -3,8 +3,9 @@
 const MESSAGES = {
   interest_received: (p) => `${p?.fromName || "Someone"} sent you an interest request${p?.subject ? ` for ${p.subject}` : ""}`,
   interest_accepted: (p) => `Your interest request${p?.subject ? ` for ${p.subject}` : ""} was accepted`,
-  interest_declined: (p) => `Your interest request${p?.subject ? ` for ${p.subject}` : ""} was declined`,
+  interest_declined: (p) => `Your interest request${p?.subject ? ` for ${p.subject}` : ""} was declined${p?.declineReason ? ` — ${p.declineReason}` : ""}`,
   interest_completed: (p) => `Your interest request${p?.subject ? ` for ${p.subject}` : ""} was marked completed`,
+  interest_withdrawn: (p) => `An interest request${p?.subject ? ` for ${p.subject}` : ""} was withdrawn`,
   new_review: (p) => `You received a new ${p?.rating ? `${p.rating}-star ` : ""}review`,
   listing_flagged: (p) => `Your listing${p?.subject ? ` “${p.subject}”` : ""} was flagged for review`,
 };
@@ -16,6 +17,7 @@ export const NOTIFICATION_ICON = {
   interest_accepted: "check",
   interest_declined: "x",
   interest_completed: "book",
+  interest_withdrawn: "x",
   new_review: "heart",
   listing_flagged: "flag",
 };
@@ -29,6 +31,8 @@ export const notificationLink = (n, user) => {
     case "interest_declined":
     case "interest_completed":
       return "/interests?tab=sent";
+    case "interest_withdrawn":
+      return "/interests?tab=received";
     case "new_review":
       return user?._id ? `/teachers/${user._id}` : "/dashboard";
     case "listing_flagged":

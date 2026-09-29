@@ -44,6 +44,10 @@ export const listReportsValidation = [
     .optional()
     .isIn(["pending", "resolved", "dismissed"])
     .withMessage("status must be one of: pending, resolved, dismissed"),
+  query("severity")
+    .optional()
+    .isIn(["low", "medium", "high"])
+    .withMessage("severity must be one of: low, medium, high"),
   query("page").optional().isInt({ min: 1 }).withMessage("page must be a positive integer"),
   query("limit").optional().isInt({ min: 1, max: 50 }).withMessage("limit must be between 1 and 50"),
 ];
@@ -56,6 +60,15 @@ export const resolveReportValidation = [
     .isIn(["resolved", "dismissed"])
     .withMessage("status must be 'resolved' or 'dismissed'"),
   adminNotesValidator(),
+];
+
+export const updateReportSeverityValidation = [
+  param("id").isMongoId().withMessage("Invalid report id"),
+  body("severity")
+    .notEmpty()
+    .withMessage("severity is required")
+    .isIn(["low", "medium", "high"])
+    .withMessage("severity must be one of: low, medium, high"),
 ];
 
 const pageValidators = () => [

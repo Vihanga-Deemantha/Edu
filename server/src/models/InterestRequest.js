@@ -17,11 +17,16 @@ const interestRequestSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "accepted", "declined", "completed"],
+      enum: ["pending", "accepted", "declined", "completed", "withdrawn"],
       default: "pending",
     },
 
     message: { type: String, required: true, trim: true, maxlength: 1000 },
+
+    // Optional — set only when status transitions to "declined", shown back
+    // to the sender so a decline isn't a silent dead end. Never required:
+    // a teacher/student can still decline with no reason given.
+    declineReason: { type: String, trim: true, maxlength: 500, default: null },
 
     respondedAt: { type: Date, default: null },
   },

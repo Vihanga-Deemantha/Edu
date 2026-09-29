@@ -123,19 +123,56 @@ export const moderateListing = async ({ adminId, listingId, status, adminNotes }
   return listing;
 };
 
-/** GET /api/admin/reports — optionally filtered by status, newest first. */
-export const getReports = async ({ status, page = 1, limit = 20 } = {}) => {
+// severity is a string enum whose alphabetical order ("high" < "low" <
+// "medium") doesn't match urgency order, so a plain Mongo sort on the field
+// itself would be meaningless — rank it numerically instead, via aggregation.
+const REPORT_SEVERITY_RANK = { $switch: {
+  branches: [
+    { case: { $eq: ["$severity", "high"] }, then: 3 },
+    { case: { $eq: ["$severity", "medium"] }, then: 2 },
+    { case: { $eq: ["$severity", "low"] }, then: 1 },
+  ],
+  default: 2,
+} };
+
+/**
+ * GET /api/admin/reports — optionally filtered by status/severity. The
+ * pending queue sorts highest-severity-first (then newest) so an admin
+ * triages the most urgent reports first; any other status (a history view,
+ * not an active queue) sorts plain newest-first instead.
+ */
+export const getReports = async ({ status, severity, page = 1, limit = 20 } = {}) => {
   const filter = {};
   if (status) filter.status = status;
+  if (severity) filter.severity = severity;
 
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
   const skip = (pageNum - 1) * limitNum;
 
-  const [reports, total] = await Promise.all([
-    Report.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limitNum),
-    Report.countDocuments(filter),
+  const [result] = await Report.aggregate([
+    // Reports created before the severity field existed have no stored
+    // value — default them here, before $match, so filtering by severity
+    // (and the pending-queue sort below) still finds/ranks legacy reports
+    // the way Report.find() + the schema default used to.
+    { $addFields: { severity: { $ifNull: ["$severity", "medium"] } } },
+    { $match: filter },
+    { $addFields: { severityRank: REPORT_SEVERITY_RANK } },
+    {
+      $facet: {
+        data: [
+          { $sort: status === "pending" ? { severityRank: -1, createdAt: -1 } : { createdAt: -1 } },
+          { $skip: skip },
+          { $limit: limitNum },
+          { $project: { severityRank: 0 } },
+        ],
+        totalCount: [{ $count: "total" }],
+      },
+    },
   ]);
+
+  const reports = result?.data || [];
+  const total = result?.totalCount?.[0]?.total || 0;
 
   return { reports: await presentReports(reports), pagination: { page: pageNum, limit: limitNum, total } };
 };
@@ -190,8 +227,11 @@ const presentReports = async (reports) => {
       target = { name: user.name, role: user.role, isActive: activeById.get(id) ?? true };
     }
     const reporter = users.get(String(report.reporterId));
+    // presentReports is fed both hydrated Mongoose docs (from other admin
+    // read paths) and plain aggregation output (getReports' severity-ranked
+    // pipeline) — .toObject() only exists on the former.
     return {
-      ...report.toObject(),
+      ...(report.toObject ? report.toObject() : report),
       reporter: reporter ? { name: reporter.name, role: reporter.role } : null,
       target,
     };
@@ -211,6 +251,29 @@ export const resolveReport = async ({ adminId, reportId, status, adminNotes }) =
   await writeAuditLog(adminId, "report_resolved", "report", report._id, {
     status,
     adminNotes: adminNotes || null,
+  });
+
+  return report;
+};
+
+/**
+ * PATCH /api/admin/reports/:id/severity — re-triage a report independent of
+ * resolving it, so the pending queue's severity-first sort (see getReports)
+ * stays useful as an admin's read of "how urgent is this" changes.
+ */
+export const updateReportSeverity = async ({ adminId, reportId, severity }) => {
+  const report = await Report.findById(reportId);
+  if (!report) {
+    throw new ApiError(404, "Report not found", "REPORT_NOT_FOUND");
+  }
+
+  const previousSeverity = report.severity;
+  report.severity = severity;
+  await report.save();
+
+  await writeAuditLog(adminId, "report_severity_updated", "report", report._id, {
+    from: previousSeverity,
+    to: severity,
   });
 
   return report;

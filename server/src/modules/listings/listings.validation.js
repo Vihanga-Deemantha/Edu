@@ -1,6 +1,6 @@
 import { body, param, query } from "express-validator";
 import { locationBodyValidator } from "../../utils/geoValidation.js";
-import { MEDIUM_VALUES, CURRICULUM_VALUES } from "../../utils/enums.js";
+import { MEDIUM_VALUES, CURRICULUM_VALUES, CLASS_TYPE_VALUES } from "../../utils/enums.js";
 
 const priceValidator = () =>
   body("price")
@@ -94,6 +94,8 @@ export const browseListingsValidation = [
   query("grade").optional().isString(),
   query("medium").optional().isIn(MEDIUM_VALUES).withMessage("medium must be one of: sinhala, tamil, english"),
   query("curriculum").optional().isIn(CURRICULUM_VALUES).withMessage("curriculum must be one of: local, cambridge, edexcel"),
+  query("classType").optional().isIn(CLASS_TYPE_VALUES).withMessage(`classType must be one of: ${CLASS_TYPE_VALUES.join(", ")}`),
+  query("verifiedOnly").optional().isBoolean().withMessage("verifiedOnly must be a boolean").toBoolean(),
   query("minPrice").optional().isFloat({ min: 0 }).withMessage("minPrice must be a non-negative number"),
   query("maxPrice").optional().isFloat({ min: 0 }).withMessage("maxPrice must be a non-negative number"),
   query("lat")

@@ -6,7 +6,7 @@ import LocationPicker from "../components/LocationPicker.jsx";
 import useAsync from "../hooks/useAsync.js";
 import useAuth from "../hooks/useAuth.js";
 import { profilesApi, verificationApi } from "../api/endpoints.js";
-import { CLASS_TYPES, CURRICULA, GRADES, MEDIUMS, SUBJECTS, apiError, formatDate } from "../lib/format.js";
+import { CLASS_TYPES, CURRICULA, GRADES, MEDIUMS, SRI_LANKA_DISTRICTS, SUBJECTS, apiError, formatDate } from "../lib/format.js";
 
 const BIO_MAX = 1000;
 const BIO_MIN = 80;
@@ -19,9 +19,9 @@ const LANGS = [
 const EMPTY_TEACHER = {
   subjects: [], grades: [], medium: [], curriculum: [], classType: [],
   bio: "", bio_si: "", bio_ta: "", qualifications: [], experienceYears: 0,
-  photoUrl: "", introVideoUrl: "", location: null,
+  photoUrl: "", introVideoUrl: "", location: null, district: null, town: "",
 };
-const EMPTY_STUDENT = { gradeOrLevel: "", subjectsInterested: [], medium: [], location: null };
+const EMPTY_STUDENT = { gradeOrLevel: "", subjectsInterested: [], medium: [], location: null, district: null, town: "" };
 
 const pickTeacher = (p) => ({
   ...EMPTY_TEACHER,
@@ -46,6 +46,25 @@ const Section = ({ id, title, sub, children, dark }) => (
 
 const Label = ({ children }) => <span className="field-label">{children}</span>;
 
+/**
+ * Human-readable companion to LocationPicker's pin-drop — a district +
+ * optional town, shown wherever a viewer needs to scan "where is this
+ * person" at a glance instead of decoding coordinates.
+ */
+const DistrictTown = ({ form, set }) => (
+  <div className="grid gap-[18px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+    <Field label="District">
+      <select className="select" value={form.district || ""} onChange={(e) => set({ district: e.target.value || null })}>
+        <option value="">Choose a district</option>
+        {SRI_LANKA_DISTRICTS.map((d) => <option key={d}>{d}</option>)}
+      </select>
+    </Field>
+    <Field label="Town / area (optional)">
+      <input className="input" value={form.town || ""} maxLength={80} placeholder="e.g. Peradeniya" onChange={(e) => set({ town: e.target.value })} />
+    </Field>
+  </div>
+);
+
 // ─── Teacher form ────────────────────────────────────────────────────────────
 const TeacherForm = ({ form, set, errors, bioLang, setBioLang, verification }) => (
   <>
@@ -69,8 +88,9 @@ const TeacherForm = ({ form, set, errors, bioLang, setBioLang, verification }) =
           <input className="input" type="url" placeholder="https://youtube.com/…" value={form.introVideoUrl || ""} onChange={(e) => set({ introVideoUrl: e.target.value })} />
         </Field>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3.5">
         <Label>Where you teach</Label>
+        <DistrictTown form={form} set={set} />
         <LocationPicker value={form.location} onChange={(location) => set({ location })} />
       </div>
     </Section>
@@ -211,8 +231,9 @@ const StudentForm = ({ form, set, errors, forChild }) => (
       <Label>Preferred medium</Label>
       <ChipSelect options={MEDIUMS} value={form.medium} onChange={(medium) => set({ medium })} />
     </div>
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3.5">
       <Label>Location</Label>
+      <DistrictTown form={form} set={set} />
       <LocationPicker value={form.location} onChange={(location) => set({ location })} hint="Used to find teachers near you. Teachers never see an exact address." />
     </div>
   </Section>
@@ -318,6 +339,8 @@ const ProfileEditPage = () => {
           experienceYears: Number(form.experienceYears) || 0,
           photoUrl: form.photoUrl?.trim() || null,
           introVideoUrl: form.introVideoUrl?.trim() || null,
+          district: form.district || null,
+          town: form.town?.trim() || null,
           ...(form.location ? { location: form.location } : {}),
         });
       } else {
@@ -326,6 +349,8 @@ const ProfileEditPage = () => {
           gradeOrLevel: form.gradeOrLevel || null,
           subjectsInterested: form.subjectsInterested,
           medium: form.medium,
+          district: form.district || null,
+          town: form.town?.trim() || null,
           ...(form.location ? { location: form.location } : {}),
         });
       }

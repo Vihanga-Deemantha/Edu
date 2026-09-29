@@ -100,7 +100,7 @@ const searchViaInMemoryFallback = async ({ filter, queryEmbedding, limitNum, ski
  * precisely."
  */
 export const semanticSearch = async (requester, { query, page = 1, limit = 20, ...structuredFilters }) => {
-  const filter = buildListingStructuredFilter(requester, structuredFilters);
+  const filter = await buildListingStructuredFilter(requester, structuredFilters);
 
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));

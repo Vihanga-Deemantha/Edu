@@ -61,6 +61,19 @@ router.patch(
 );
 
 /**
+ * PATCH /api/interests/:id/withdraw
+ * Protected, sending side only (or a parent acting for a linked-child
+ * sender) — only while the request is still pending.
+ */
+router.patch(
+  "/:id/withdraw",
+  authenticate,
+  interestIdParamValidation,
+  validate,
+  interestsController.withdrawInterestRequest
+);
+
+/**
  * PATCH /api/interests/:id/complete
  * Protected, either participant (or a parent acting for a linked-child
  * participant) — only once the request is already accepted.

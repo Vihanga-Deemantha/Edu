@@ -82,6 +82,20 @@ export const resolveReport = async (req, res, next) => {
   }
 };
 
+// ─── PATCH /api/admin/reports/:id/severity ───────────────────────────────────
+export const updateReportSeverity = async (req, res, next) => {
+  try {
+    const report = await adminService.updateReportSeverity({
+      adminId: req.user.id,
+      reportId: req.params.id,
+      severity: req.body.severity,
+    });
+    res.status(200).json({ success: true, data: { report } });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ─── GET /api/admin/stats ─────────────────────────────────────────────────────
 export const getStats = async (req, res, next) => {
   try {

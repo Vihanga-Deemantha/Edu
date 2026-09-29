@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { pointSchema } from "../utils/geoSchema.js";
-import { MEDIUM_VALUES, CURRICULUM_VALUES } from "../utils/enums.js";
+import { MEDIUM_VALUES, CURRICULUM_VALUES, CLASS_TYPE_VALUES, DISTRICT_VALUES } from "../utils/enums.js";
 
 /**
  * TeacherProfile — the public-facing profile a teacher builds on top of their
@@ -54,7 +54,7 @@ const teacherProfileSchema = new mongoose.Schema(
 
     classType: {
       type: [String],
-      enum: ["individual", "group", "online", "home_visit"],
+      enum: CLASS_TYPE_VALUES,
       required: true,
       validate: {
         validator: (arr) => Array.isArray(arr) && arr.length > 0,
@@ -94,6 +94,13 @@ const teacherProfileSchema = new mongoose.Schema(
       required: false,
       default: undefined,
     },
+
+    // Human-readable companion to `location` — a viewer can't make sense of
+    // raw coordinates, but "Kandy" (or "Kandy, Peradeniya") scans instantly.
+    // Purely informational: distance search and the map still run off
+    // `location`, never off these strings.
+    district: { type: String, enum: [...DISTRICT_VALUES, null], default: null },
+    town: { type: String, trim: true, maxlength: 80, default: null },
 
     photoUrl: { type: String, default: null },
     introVideoUrl: { type: String, default: null },

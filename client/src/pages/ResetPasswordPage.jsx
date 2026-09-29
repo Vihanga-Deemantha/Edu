@@ -38,7 +38,7 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <AuthLayout aside={{ title: "Choose a new password.", sub: "Use at least 8 characters. A mix of letters and numbers is stronger." }}>
+    <AuthLayout aside={{ title: "Choose a new password.", sub: "Use at least 8 characters. A mix of letters and numbers is stronger.", illustration: "/design/auth-reset.png" }}>
       <div className="flex flex-col gap-5">
         <AuthHeading
           title="Reset your password"

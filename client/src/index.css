@@ -148,6 +148,10 @@ img, video { max-width: 100%; display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .rise { animation: rise .3s ease-out; }
+@keyframes illoFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.illustration-fade { animation: illoFade .6s ease-out; }
+@keyframes floatA { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes floatB { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
 
 /* ─── Surfaces ──────────────────────────────────────────────────────────── */
 .card { background: #fff; border: 1px solid var(--line); border-radius: 16px; }

@@ -19,6 +19,13 @@ export const respondToInterestValidation = [
     .withMessage("status is required")
     .isIn(["accepted", "declined"])
     .withMessage("status must be 'accepted' or 'declined'"),
+  // Only meaningful alongside status: "declined" — silently ignored otherwise
+  // (see respondToInterestRequest in the service layer).
+  body("declineReason")
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("declineReason must be at most 500 characters"),
 ];
 
 export const interestIdParamValidation = [param("id").isMongoId().withMessage("Invalid interest request id")];

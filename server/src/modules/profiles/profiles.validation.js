@@ -1,6 +1,6 @@
 import { body, param } from "express-validator";
 import { locationBodyValidator } from "../../utils/geoValidation.js";
-import { MEDIUM_VALUES, CURRICULUM_VALUES } from "../../utils/enums.js";
+import { MEDIUM_VALUES, CURRICULUM_VALUES, CLASS_TYPE_VALUES, DISTRICT_VALUES } from "../../utils/enums.js";
 
 /**
  * All body validators here are `.optional()` — PUT is used with upsert
@@ -27,6 +27,14 @@ const enumArray = (field, label, allowed) =>
     .custom((arr) => arr.every((v) => allowed.includes(v)))
     .withMessage(`${label} must only contain: ${allowed.join(", ")}`);
 
+const districtAndTown = () => [
+  body("district")
+    .optional({ nullable: true })
+    .isIn(DISTRICT_VALUES)
+    .withMessage(`district must be one of: ${DISTRICT_VALUES.join(", ")}`),
+  body("town").optional({ nullable: true }).trim().isLength({ max: 80 }).withMessage("town must be at most 80 characters"),
+];
+
 // Reject the derived/admin-only fields outright if a client sends them at
 // all — fail loud rather than silently drop, so a future frontend that
 // starts relying on "I can set this" finds out immediately, not in production.
@@ -40,7 +48,7 @@ export const upsertTeacherProfileValidation = [
   nonEmptyStringArray("subjects", "subjects"),
   nonEmptyStringArray("grades", "grades"),
   enumArray("medium", "medium", MEDIUM_VALUES),
-  enumArray("classType", "classType", ["individual", "group", "online", "home_visit"]),
+  enumArray("classType", "classType", CLASS_TYPE_VALUES),
   body("curriculum")
     .optional()
     .isArray().withMessage("curriculum must be an array")
@@ -61,6 +69,7 @@ export const upsertTeacherProfileValidation = [
   body("photoUrl").optional({ nullable: true }).isString(),
   body("introVideoUrl").optional({ nullable: true }).isString(),
   locationBodyValidator(),
+  ...districtAndTown(),
   ...rejectReadOnlyTeacherFields,
 ];
 
@@ -77,6 +86,7 @@ export const upsertStudentProfileValidation = [
     .custom((arr) => arr.every((v) => MEDIUM_VALUES.includes(v)))
     .withMessage("medium must only contain: sinhala, tamil, english"),
   locationBodyValidator(),
+  ...districtAndTown(),
 ];
 
 export const userIdParamValidation = [

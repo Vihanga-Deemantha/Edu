@@ -13,6 +13,31 @@ const RANGES = [
 ];
 
 const monthLabel = (key) => new Date(`${key}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
+const monthLabelLong = (key) => new Date(`${key}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+
+/**
+ * Client-side CSV export of the same monthly figures already on this page
+ * (bookings + deposits) — no backend report-generation endpoint exists, so
+ * this is the honest equivalent of the design's "Download PDF" affordance:
+ * real numbers the admin already sees, not a fabricated document.
+ */
+const downloadMonthlyReportCsv = (s) => {
+  const rows = [["Month", "Bookings", `Deposits (${s.deposits.currency.toUpperCase()})`]];
+  s.bookings.monthly.forEach((b, i) => {
+    const deposit = s.deposits.monthly[i];
+    rows.push([b.month, b.count, deposit ? (deposit.amount / 100).toFixed(2) : "0.00"]);
+  });
+  const csv = rows.map((r) => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `edulink-monthly-report-${new Date().toISOString().slice(0, 7)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
 
 /** Single-series monthly bar chart (one hue, per-bar hover tooltip, baseline-anchored rounded tops). */
 const BarChart = ({ series, format }) => {
@@ -289,6 +314,25 @@ const AdminDashboardPage = () => {
             </Link>
           ))}
           {openReports?.reports?.length === 0 && <span className="text-sm text-ink-2">No open reports. Nice.</span>}
+        </section>
+
+        <section className="card flex flex-col gap-3.5 rounded-[18px] p-5">
+          <div className="flex items-center justify-between">
+            <span className="serif text-[19px] font-bold">Monthly reports</span>
+            <Icon name="file" size={18} className="text-ink-2" />
+          </div>
+          <div className="flex items-center gap-3 rounded-xl bg-mist p-3.5">
+            <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-white text-primary">
+              <Icon name="file" size={20} strokeWidth={1.5} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold">{monthLabelLong(bookingSeries.at(-1)?.month)}</div>
+              <div className="text-xs text-ink-2">{formatNumber(thisMonthBookings)} bookings · {formatMinorAmount(thisMonthDeposits, cur)} deposits</div>
+            </div>
+          </div>
+          <button type="button" className="btn btn-soft btn-sm self-start" onClick={() => downloadMonthlyReportCsv(s)}>
+            <Icon name="upload" size={15} style={{ transform: "rotate(180deg)" }} /> Download 12-month CSV
+          </button>
         </section>
       </div>
     </div>

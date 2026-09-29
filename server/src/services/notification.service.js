@@ -14,6 +14,7 @@ const NOTIFICATION_SUBJECTS = {
   interest_accepted: "Your interest request was accepted",
   interest_declined: "Your interest request was declined",
   interest_completed: "An interest request was marked completed",
+  interest_withdrawn: "An interest request was withdrawn",
   new_review: "You've received a new review",
   listing_flagged: "Your listing was flagged for review",
 };
@@ -29,9 +30,11 @@ const NOTIFICATION_MESSAGES = {
   interest_accepted: (payload) =>
     `Your interest request${payload?.subject ? ` for ${payload.subject}` : ""} was accepted.`,
   interest_declined: (payload) =>
-    `Your interest request${payload?.subject ? ` for ${payload.subject}` : ""} was declined.`,
+    `Your interest request${payload?.subject ? ` for ${payload.subject}` : ""} was declined.${payload?.declineReason ? ` Reason: ${payload.declineReason}` : ""}`,
   interest_completed: (payload) =>
     `Your interest request${payload?.subject ? ` for ${payload.subject}` : ""} was marked completed.`,
+  interest_withdrawn: (payload) =>
+    `An interest request${payload?.subject ? ` for ${payload.subject}` : ""} was withdrawn by the sender.`,
   new_review: (payload) => `You received a new ${payload?.rating ? `${payload.rating}-star ` : ""}review.`,
   listing_flagged: (payload) => `Your listing${payload?.subject ? ` "${payload.subject}"` : ""} was flagged for review.`,
 };
