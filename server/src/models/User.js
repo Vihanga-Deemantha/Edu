@@ -53,8 +53,12 @@ const userSchema = new mongoose.Schema(
      * verified at different times (important for Google Sign-In where email
      * is pre-verified but phone is not).
      *
-     * POLICY: both emailVerified AND phoneVerified must be true before login
-     * is allowed, for every role except children (who never log in directly).
+     * POLICY: emailVerified must be true before login is allowed (see
+     * auth.service.js's loginUser). phoneVerified is tracked but not
+     * currently enforced — SMS delivery has no free tier, so requiring it
+     * would lock out real users until a paid SMS provider is configured.
+     * It stays available as a "verify later" step. Exception: registerChild
+     * still requires the PARENT to be phoneVerified before adding a child.
      */
     emailVerified: {
       type: Boolean,
