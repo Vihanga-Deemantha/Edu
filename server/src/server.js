@@ -42,7 +42,19 @@ const start = async () => {
   // whichever request happens to hit it first — that first load takes real
   // time (reading/decoding the ONNX weights), and nobody should have to be
   // the unlucky request that pays for it.
-  warmUpEmbeddingModel().catch((err) => console.error("Embedding model warm-up failed (non-fatal):", err.message));
+  //
+  // SKIP_EMBEDDING_WARMUP=true opts out of this on memory-constrained hosts
+  // (e.g. Render's free tier: 512MB total). Loading multilingual-e5-small
+  // pushes RSS to ~300-370MB on top of Node/Express/Mongoose/Socket.io/
+  // BullMQ's own baseline — observed in production to exceed the limit and
+  // get the process OOM-killed within a minute or two of every boot, in a
+  // restart loop, taking the whole API down. getExtractor() in
+  // embedding.service.js already lazy-loads on first real use regardless, so
+  // skipping the eager warm-up only costs one extra-slow first search/
+  // recommendation request rather than the server never staying up at all.
+  if (process.env.SKIP_EMBEDDING_WARMUP !== "true") {
+    warmUpEmbeddingModel().catch((err) => console.error("Embedding model warm-up failed (non-fatal):", err.message));
+  }
 
   // Hosts with only one free always-on process (e.g. Render's free web
   // service) can't also run worker.js as a second process. Setting
