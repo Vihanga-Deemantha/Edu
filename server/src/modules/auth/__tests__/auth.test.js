@@ -66,6 +66,40 @@ describe("OTP verification and login gating", () => {
     expect(verifyRes.headers["set-cookie"]?.[0]).toMatch(/refreshToken=/);
   });
 
+  it("logs in automatically once email alone is verified — phone is a 'verify later' step, not a gate", async () => {
+    const payload = baseTeacher();
+    const registerRes = await request(app).post("/api/auth/register").send(payload);
+    const { userId } = registerRes.body.data;
+    const emailCode = __testOtpCapture[`${userId}:email:signup`];
+
+    const verifyRes = await request(app)
+      .post("/api/auth/verify-otp")
+      .send({ userId, channel: "email", code: emailCode });
+
+    expect(verifyRes.status).toBe(200);
+    expect(verifyRes.body.data.fullyVerified).toBe(true);
+    expect(verifyRes.body.data.accessToken).toBeTruthy();
+    expect(verifyRes.headers["set-cookie"]?.[0]).toMatch(/refreshToken=/);
+  });
+
+  it("allows a direct /login once email is verified, even with phone still unverified", async () => {
+    const payload = baseTeacher();
+    const registerRes = await request(app).post("/api/auth/register").send(payload);
+    const { userId } = registerRes.body.data;
+    const emailCode = __testOtpCapture[`${userId}:email:signup`];
+    await request(app).post("/api/auth/verify-otp").send({ userId, channel: "email", code: emailCode });
+
+    const loginRes = await request(app)
+      .post("/api/auth/login")
+      .send({ email: payload.email, password: payload.password });
+
+    expect(loginRes.status).toBe(200);
+    expect(loginRes.body.data.accessToken).toBeTruthy();
+
+    const user = await User.findById(userId);
+    expect(user.phoneVerified).toBe(false);
+  });
+
   it("rejects the wrong password with a generic 401 after verification", async () => {
     const { payload } = await registerAndVerify();
 

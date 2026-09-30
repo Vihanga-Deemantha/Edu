@@ -128,14 +128,15 @@ export const registerUser = async ({ name, email, phone, password, role }) => {
 // ─── OTP VERIFICATION ────────────────────────────────────────────────────────
 
 /**
- * Verify one OTP code. If both channels are now verified, issue tokens (auto-login).
+ * Verify one OTP code. If the account is now usable, issue tokens (auto-login).
  * Returns { user, fullyVerified, accessToken?, refreshToken? }
  */
 export const verifyOtpAndMaybeLogin = async ({ userId, channel, purpose, code, userAgent }) => {
   const updatedUser = await verifyOtp(userId, channel, purpose, code);
 
-  if (updatedUser.emailVerified && updatedUser.phoneVerified) {
-    // Both channels verified — auto-login
+  // Email alone is enough to log in (see loginUser) — phone stays a
+  // "verify later" step rather than blocking auto-login here too.
+  if (updatedUser.emailVerified) {
     const { accessToken, refreshToken } = await issueTokens(updatedUser, userAgent);
     return { user: updatedUser, fullyVerified: true, accessToken, refreshToken };
   }
@@ -158,7 +159,10 @@ export const resendOtp = async ({ userId, channel, purpose }) => {
 
 /**
  * Log in with email + password.
- * Requires both emailVerified AND phoneVerified — returns specific 403 code if not.
+ * Requires emailVerified only. phoneVerified is tracked but not enforced
+ * here — SMS delivery costs money with no free tier (unlike email), so
+ * requiring it would lock every real user out until a paid SMS provider is
+ * wired up. Phone stays available to verify later, it just isn't a gate.
  */
 export const loginUser = async ({ email, password, userAgent }) => {
   const user = await User.findOne({ email: normalizeEmail(email) }).select("+passwordHash");
@@ -179,14 +183,14 @@ export const loginUser = async ({ email, password, userAgent }) => {
     throw new ApiError(403, "Account has been suspended", "ACCOUNT_SUSPENDED");
   }
 
-  // Verification gate — both channels must be verified.
+  // Verification gate — email must be verified.
   // Carries userId in the error's data so the frontend can jump straight to
   // /verify-otp for THIS account — previously this response gave no way for
   // the client to know who to verify, which was a dead end in the UI.
-  if (!user.emailVerified || !user.phoneVerified) {
+  if (!user.emailVerified) {
     throw new ApiError(
       403,
-      "Account not fully verified. Please complete email and phone verification.",
+      "Please verify your email before logging in.",
       "ACCOUNT_NOT_VERIFIED",
       { userId: user._id }
     );
@@ -386,12 +390,11 @@ const createGoogleUserWithRetry = async ({ name, email, sub, emailVerified }, at
 /**
  * Google Sign-In — verify idToken, find-or-create user.
  *
- * Returns one of three states:
- *   1. { user, tokens } — fully set up, tokens issued
+ * Returns one of two states:
+ *   1. { user, tokens } — profile complete, tokens issued (phone need not be
+ *      verified — see loginUser's comment on why phone isn't a gate)
  *   2. { user, profileIncomplete: true, reason: 'profile_incomplete' } — brand-new
  *      Google user, needs role + phone (completeProfile handles both together)
- *   3. { user, profileIncomplete: true, reason: 'phone_unverified' } — profile is
- *      complete (role + phone set) but the phone OTP hasn't been verified yet
  */
 export const googleAuth = async (idToken, userAgent) => {
   if (process.env.GOOGLE_SIGNIN_ENABLED !== "true") {
@@ -424,9 +427,8 @@ export const googleAuth = async (idToken, userAgent) => {
     return { user, profileIncomplete: true, reason: "profile_incomplete" };
   }
 
-  if (!user.phoneVerified) {
-    return { user, profileIncomplete: true, reason: "phone_unverified" };
-  }
+  // Phone verification isn't required to use the account (see loginUser) —
+  // a Google account with a complete profile goes straight to tokens.
 
   // Fully set up — issue tokens
   const { accessToken, refreshToken } = await issueTokens(user, userAgent);

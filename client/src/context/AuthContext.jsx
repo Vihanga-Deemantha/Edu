@@ -117,7 +117,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Verify one OTP channel. If both are now verified, backend returns tokens.
+   * Verify one OTP channel. The backend returns tokens as soon as email is
+   * verified — phone is a "verify later" step, not required to log in.
    */
   const verifyOtp = async (userId, channel, code) => {
     const res = await authApi.verifyOtp(userId, channel, code);

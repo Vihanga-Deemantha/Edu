@@ -141,7 +141,7 @@ const VerifyOtpPage = () => {
   return (
     <AuthLayout aside={aside}>
       <div className="flex flex-col gap-6">
-        <AuthHeading title="Verify your account" sub="Enter the 6-digit codes we sent. Both need to be verified before you can sign in." />
+        <AuthHeading title="Verify your account" sub="Enter the code we emailed you to sign in. You can verify your phone now or later." />
         <ChannelCard channel="email" label="Email" target={user?.email} userId={userId} verified={verified.email || emailPreVerified} onVerified={markVerified} />
         <ChannelCard channel="phone" label="Phone" target={user?.phone} userId={userId} verified={verified.phone} onVerified={markVerified} />
         <span className="text-center text-sm text-ink-2">
