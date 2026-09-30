@@ -44,6 +44,20 @@ const start = async () => {
   // the unlucky request that pays for it.
   warmUpEmbeddingModel().catch((err) => console.error("Embedding model warm-up failed (non-fatal):", err.message));
 
+  // Hosts with only one free always-on process (e.g. Render's free web
+  // service) can't also run worker.js as a second process. Setting
+  // RUN_WORKER_INLINE=true starts the same BullMQ consumer inside the API
+  // process instead — same queue, same Mongo connection, just one fewer
+  // process to pay for. Leave it unset for local dev / any host where
+  // `npm run worker` runs as its own process (the normal, isolated setup).
+  if (process.env.RUN_WORKER_INLINE === "true") {
+    const { startNotificationWorker } = await import("./queues/notification.worker.js");
+    const worker = startNotificationWorker();
+    worker.on("completed", (job) => console.log(`Notification job ${job.id} (${job.name}) completed`));
+    worker.on("failed", (job, err) => console.error(`Notification job ${job?.id} (${job?.name}) failed:`, err.message));
+    console.log("Notification worker running inline (RUN_WORKER_INLINE=true).");
+  }
+
   // Only start accepting requests after DB is connected. Listening on the
   // wrapping httpServer (not app.listen directly) so Socket.io's chat
   // connections share the same port as the REST API.

@@ -1,0 +1,65 @@
+services:
+  - type: web
+    name: eduhub-server
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    plan: free
+    healthCheckPath: /api/listings/browse
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Runs the BullMQ notification worker inside this same process — the
+      # free plan only gives one always-on service, so there's no separate
+      # worker service here. See the comment in server/src/server.js.
+      - key: RUN_WORKER_INLINE
+        value: "true"
+      - key: PORT
+        value: "5067"
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRY
+        value: 15m
+      - key: JWT_REFRESH_EXPIRY
+        value: 7d
+      # Your Vercel frontend URL — set after the frontend is deployed.
+      - key: CORS_ORIGIN
+        sync: false
+      - key: CLIENT_URL
+        sync: false
+      - key: BCRYPT_SALT_ROUNDS
+        value: "10"
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: GOOGLE_SIGNIN_ENABLED
+        value: "false"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: TRIAL_DEPOSIT_AMOUNT_CENTS
+        value: "1000"
