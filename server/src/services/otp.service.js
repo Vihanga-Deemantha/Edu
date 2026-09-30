@@ -73,12 +73,24 @@ export const createAndSendOtp = async (userId, channel, purpose) => {
     __testOtpCapture[`${userId}:${channel}:${purpose}`] = rawCode;
   }
 
-  // Dispatch via the appropriate channel
-  if (channel === "email") {
-    await sendOtpEmail({ to: user.email, code: rawCode, purpose });
-  } else {
-    await sendOtpSms({ phone: user.phone, code: rawCode, purpose });
-  }
+  // Dispatch via the appropriate channel — fire-and-forget. The code is
+  // already generated and safely stored above; all that's left is a network
+  // call to an email/SMS provider outside this app's control, which can hang
+  // or fail for reasons that have nothing to do with whether the OTP itself
+  // is valid (observed in production: a slow/unreachable SMTP host can block
+  // for its full connection timeout). Awaiting it here would block whichever
+  // request triggered this call — register, resend, forgot-password,
+  // Google's completeProfile — on that external call, and a failure would
+  // fail the whole request even though the OTP was already created
+  // successfully. "Resend code" already exists for the case where delivery
+  // itself fails or is slow.
+  const dispatch =
+    channel === "email"
+      ? sendOtpEmail({ to: user.email, code: rawCode, purpose })
+      : sendOtpSms({ phone: user.phone, code: rawCode, purpose });
+  dispatch.catch((err) =>
+    console.error(`Failed to dispatch ${channel} OTP (${purpose}) to user ${userId}:`, err.message)
+  );
 };
 
 /**
