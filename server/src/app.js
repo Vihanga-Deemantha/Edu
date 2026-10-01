@@ -24,6 +24,15 @@ import { corsOriginCheck } from "./utils/corsOriginCheck.js";
 
 const app = express();
 
+// Render (like most PaaS hosts) puts the app behind exactly one reverse
+// proxy, which sets X-Forwarded-For to the real client IP. Trusting just
+// that first hop lets express-rate-limit (and req.ip generally) read the
+// real client IP instead of Render's proxy IP, without trusting arbitrary
+// client-supplied X-Forwarded-For values from further upstream. Without
+// this, express-rate-limit refuses to trust X-Forwarded-For at all and logs
+// ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on every request.
+app.set("trust proxy", 1);
+
 // 1. Security headers
 app.use(helmet());
 

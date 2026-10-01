@@ -17,16 +17,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: resolve(__dirname, "../../.env") });
 
+import dns from "dns";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import User from "../models/User.js";
+
+// See the matching comment in ../config/db.js — Windows' default DNS
+// resolver can fail to resolve the SRV record a mongodb+srv:// URI needs
+// even when the cluster is reachable, so this forces a known-good DNS
+// server for this one-off script too.
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 // ── Admin credentials — change these before running ──────────────────────────
 const ADMIN = {
   name: "Admin",
   email: "admin@eduhub.lk",
   phone: "+94700000001",   // reserved admin number — change if needed
-  password: "Admin@123",   // ← change this!
+  password: "sasuke123",   // ← change this!
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
