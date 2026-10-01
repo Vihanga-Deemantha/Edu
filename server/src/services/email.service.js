@@ -1,14 +1,55 @@
 import nodemailer from "nodemailer";
 
 /**
- * Email service — sends transactional emails via Nodemailer (Gmail SMTP).
+ * Email service — sends transactional email via Brevo's HTTP API when
+ * BREVO_API_KEY is set, Nodemailer/SMTP otherwise, or logs to console if
+ * neither is configured.
  *
- * When SMTP_HOST is not configured (local dev without credentials),
- * falls back to console logging so the app doesn't crash.
+ * Why two delivery paths: several free-tier hosts (Render among them, since
+ * September 2025) block outbound traffic to SMTP ports 25/465/587 entirely
+ * to stop spam abuse of free compute — a connection to ANY SMTP host,
+ * Gmail or otherwise, just hangs until it times out. Brevo's HTTP API sends
+ * the same email as a plain HTTPS POST on port 443 instead, which no such
+ * policy blocks (blocking 443 would break the host entirely). Nodemailer
+ * stays as the path for hosts that don't block SMTP (e.g. local dev).
  *
- * To configure for real: set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS,
- * and SMTP_FROM in your .env file.
+ * Priority: BREVO_API_KEY (HTTP API) > SMTP_HOST (Nodemailer) > console-log.
  */
+
+const BREVO_SEND_URL = "https://api.brevo.com/v3/smtp/email";
+
+/** Splits "Name <email@x.com>" into parts; Brevo's API wants them separate. */
+const parseFrom = (raw) => {
+  const fallback = { name: "EduHub", email: "no-reply@eduhub.lk" };
+  if (!raw) return fallback;
+  const match = raw.match(/^\s*(.*?)\s*<(.+)>\s*$/);
+  if (match) return { name: match[1] || fallback.name, email: match[2] };
+  return { name: fallback.name, email: raw.trim() };
+};
+
+const sendViaBrevoApi = async ({ to, subject, html, text }) => {
+  const { name, email } = parseFrom(process.env.SMTP_FROM);
+  const res = await fetch(BREVO_SEND_URL, {
+    method: "POST",
+    headers: {
+      "api-key": process.env.BREVO_API_KEY,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name, email },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text || html.replace(/<[^>]+>/g, ""),
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Brevo API send failed (${res.status}): ${body}`);
+  }
+};
 
 let transporter = null;
 
@@ -43,6 +84,11 @@ const getTransporter = () => {
  * @param {string} [options.text]  - Plain-text fallback (auto-generated if omitted)
  */
 export const sendEmail = async ({ to, subject, html, text }) => {
+  if (process.env.BREVO_API_KEY) {
+    await sendViaBrevoApi({ to, subject, html, text });
+    return;
+  }
+
   const mail = getTransporter();
 
   if (!mail) {
