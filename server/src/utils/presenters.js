@@ -25,7 +25,7 @@ export const summarizeUsers = async (ids) => {
   const idList = uniqueIds(ids);
   if (idList.length === 0) return new Map();
 
-  const users = await User.find({ _id: { $in: idList } }).select("name role grade parentId createdAt");
+  const users = await User.find({ _id: { $in: idList } }).select("name role grade parentId createdAt photoUrl");
   const parentIds = uniqueIds(users.map((u) => u.parentId));
   const parents = parentIds.length
     ? await User.find({ _id: { $in: parentIds } }).select("name")
@@ -42,6 +42,9 @@ export const summarizeUsers = async (ids) => {
           name: isChild ? firstName(u.name) : u.name,
           role: u.role,
           isChild,
+          // Never a child's — a photo identifies further than the first-name-
+          // only rule above already allows (see this file's header comment).
+          photoUrl: isChild ? null : u.photoUrl || null,
           grade: u.grade || null,
           parentId: u.parentId || null,
           parentName: isChild ? parentNameById.get(String(u.parentId)) || null : null,

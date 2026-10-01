@@ -4,6 +4,20 @@ import StudentProfile from "../../models/StudentProfile.js";
 import TeacherVerification from "../../models/TeacherVerification.js";
 import ApiError from "../../utils/ApiError.js";
 import { isRequesterParentOf } from "../../utils/familyAccess.js";
+import { getSignedProfilePhotoUploadParams } from "../../services/upload.service.js";
+
+/**
+ * Keeps User.photoUrl in sync whenever a teacher/student profile sets one —
+ * TeacherProfile/StudentProfile.photoUrl stays the field of record (what the
+ * public profile page and listing cards read), this is purely so anywhere
+ * holding only the bare User doc (the app header, via AuthContext) can show
+ * the same picture without a second fetch. Fire-and-forget would risk the
+ * header silently going stale, so this is awaited like the write it mirrors.
+ */
+const mirrorPhotoToUser = async (userId, photoUrl) => {
+  if (photoUrl === undefined) return;
+  await User.findByIdAndUpdate(userId, { photoUrl });
+};
 
 const READ_ONLY_TEACHER_FIELDS = ["verificationStatus", "avgRating", "reviewCount"];
 const REQUIRED_ON_CREATE = ["subjects", "grades", "medium", "classType"];
@@ -43,6 +57,7 @@ export const upsertTeacherProfile = async (userId, rawFields) => {
     // ambiguity and no second round trip.
     Object.assign(existing, fields);
     await existing.save();
+    await mirrorPhotoToUser(userId, fields.photoUrl);
     return existing;
   }
 
@@ -64,7 +79,9 @@ export const upsertTeacherProfile = async (userId, rawFields) => {
   const verification = await TeacherVerification.findOne({ userId });
   fields.verificationStatus = verification ? verification.verificationTier : "none";
 
-  return TeacherProfile.create({ userId, ...fields });
+  const created = await TeacherProfile.create({ userId, ...fields });
+  await mirrorPhotoToUser(userId, fields.photoUrl);
+  return created;
 };
 
 /**
@@ -124,10 +141,47 @@ export const upsertStudentProfile = async ({ requesterId, targetUserId, ...field
   if (existing) {
     Object.assign(existing, fields);
     await existing.save();
+    await mirrorPhotoToUser(targetUserId, fields.photoUrl);
     return existing;
   }
 
-  return StudentProfile.create({ userId: targetUserId, ...fields });
+  const created = await StudentProfile.create({ userId: targetUserId, ...fields });
+  await mirrorPhotoToUser(targetUserId, fields.photoUrl);
+  return created;
+};
+
+// ─── PROFILE PHOTO (any role — teacher, student, parent, admin) ─────────────
+
+/**
+ * GET /api/profiles/photo/upload-signature. Pure Cloudinary signing, no DB
+ * write — so it doesn't need to know which model the caller will eventually
+ * save the resulting URL into (TeacherProfile, StudentProfile or User,
+ * depending on role). Same "self, or a linked child" rule as
+ * upsertStudentProfile above.
+ */
+export const getPhotoUploadSignature = async ({ requesterId, targetUserId }) => {
+  const resolvedTargetId = targetUserId || requesterId;
+  if (
+    resolvedTargetId !== requesterId &&
+    !(await isRequesterParentOf(requesterId, resolvedTargetId))
+  ) {
+    throw new ApiError(403, "You can only upload a photo for yourself or a linked child account.", "FORBIDDEN");
+  }
+  return getSignedProfilePhotoUploadParams({ folder: `profile-photos/${resolvedTargetId}` });
+};
+
+/**
+ * PUT /api/profiles/me/photo — parent and admin only. Neither role has a
+ * public marketplace profile document of their own (no ParentProfile model,
+ * and an admin isn't a marketplace participant at all), so their own
+ * photoUrl lives directly on User. Teacher and student instead go through
+ * upsertTeacherProfile/upsertStudentProfile above, which mirror onto User
+ * themselves — this function is deliberately not used by those two roles.
+ */
+export const updateMyPhoto = async (userId, photoUrl) => {
+  const user = await User.findByIdAndUpdate(userId, { photoUrl: photoUrl || null }, { new: true });
+  if (!user) throw new ApiError(404, "User not found", "USER_NOT_FOUND");
+  return user;
 };
 
 /**

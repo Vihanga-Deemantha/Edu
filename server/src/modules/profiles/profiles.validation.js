@@ -1,4 +1,4 @@
-import { body, param } from "express-validator";
+import { body, param, query } from "express-validator";
 import { locationBodyValidator } from "../../utils/geoValidation.js";
 import { MEDIUM_VALUES, CURRICULUM_VALUES, CLASS_TYPE_VALUES, DISTRICT_VALUES } from "../../utils/enums.js";
 
@@ -87,8 +87,19 @@ export const upsertStudentProfileValidation = [
     .withMessage("medium must only contain: sinhala, tamil, english"),
   locationBodyValidator(),
   ...districtAndTown(),
+  body("photoUrl").optional({ nullable: true }).isString(),
 ];
 
 export const userIdParamValidation = [
   param("userId").isMongoId().withMessage("Invalid userId"),
+];
+
+// ─── Profile photo (teacher, student, parent, admin — any role) ─────────────
+
+export const photoUploadSignatureValidation = [
+  query("targetUserId").optional().isMongoId().withMessage("targetUserId must be a valid id"),
+];
+
+export const updateMyPhotoValidation = [
+  body("photoUrl").optional({ nullable: true }).isString(),
 ];

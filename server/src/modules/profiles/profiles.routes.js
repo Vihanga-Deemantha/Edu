@@ -4,6 +4,8 @@ import {
   upsertTeacherProfileValidation,
   upsertStudentProfileValidation,
   userIdParamValidation,
+  photoUploadSignatureValidation,
+  updateMyPhotoValidation,
 } from "./profiles.validation.js";
 import authenticate from "../../middleware/authenticate.js";
 import optionalAuthenticate from "../../middleware/optionalAuthenticate.js";
@@ -65,6 +67,35 @@ router.get(
   userIdParamValidation,
   validate,
   profilesController.getStudentProfile
+);
+
+/**
+ * GET /api/profiles/photo/upload-signature
+ * Protected: any role. Signed params for a direct-to-Cloudinary PUBLIC
+ * profile-photo upload — ?targetUserId= lets a parent request one scoped to
+ * a linked child instead of themselves (service layer enforces the link).
+ */
+router.get(
+  "/photo/upload-signature",
+  authenticate,
+  photoUploadSignatureValidation,
+  validate,
+  profilesController.getPhotoUploadSignature
+);
+
+/**
+ * PUT /api/profiles/me/photo
+ * Protected: parent, admin only. Teacher and student set their photo through
+ * their existing PUT /teacher and /student upserts instead — see
+ * profiles.service.js's updateMyPhoto comment for why.
+ */
+router.put(
+  "/me/photo",
+  authenticate,
+  authorize("parent", "admin"),
+  updateMyPhotoValidation,
+  validate,
+  profilesController.updateMyPhoto
 );
 
 export default router;
