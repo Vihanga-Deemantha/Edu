@@ -32,6 +32,7 @@ const AdminVerificationPage = lazy(() => import("./pages/admin/AdminVerification
 const AdminReportsPage = lazy(() => import("./pages/admin/AdminReportsPage.jsx"));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage.jsx"));
 const AdminListingsPage = lazy(() => import("./pages/admin/AdminListingsPage.jsx"));
+const AdminProfilePage = lazy(() => import("./pages/admin/AdminProfilePage.jsx"));
 
 const guard = (element, allowedRoles) => <ProtectedRoute allowedRoles={allowedRoles}>{element}</ProtectedRoute>;
 
@@ -87,6 +88,7 @@ const App = () => (
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="listings" element={<AdminListingsPage />} />
+        <Route path="profile" element={<AdminProfilePage />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
     </Routes>

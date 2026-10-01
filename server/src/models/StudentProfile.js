@@ -47,6 +47,10 @@ const studentProfileSchema = new mongoose.Schema(
     // identical fields for why this exists alongside, not instead of, coordinates.
     district: { type: String, enum: [...DISTRICT_VALUES, null], default: null },
     town: { type: String, trim: true, maxlength: 80, default: null },
+
+    // Mirrors TeacherProfile.photoUrl — same upload flow, same public-image
+    // storage, just for a student (or a parent-managed child) instead.
+    photoUrl: { type: String, default: null },
   },
   { timestamps: true }
 );

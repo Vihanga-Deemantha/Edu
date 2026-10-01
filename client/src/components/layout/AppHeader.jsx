@@ -118,7 +118,7 @@ const AccountMenu = ({ user, onLogout }) => {
         aria-label="Account menu"
         className="flex items-center gap-2 rounded-full border-0 bg-transparent py-1 pl-1 pr-2 hover:bg-mist"
       >
-        <Avatar name={user.name} size={36} solid />
+        <Avatar name={user.name} src={user.photoUrl} size={36} solid />
         <span className="text-[10px] text-ink-2">▾</span>
       </button>
       {open && (

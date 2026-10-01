@@ -91,4 +91,43 @@ export const getSignedViewUrl = (publicId, resourceType = "image") => {
   });
 };
 
+/**
+ * Returns signed parameters for a direct-to-Cloudinary PROFILE PHOTO upload —
+ * deliberately separate from getSignedUploadParams above. A profile photo is
+ * shown everywhere (header, browse cards, listings, the public teacher
+ * profile) and needs a plain, permanent, publicly-fetchable URL; it must
+ * never go through the "authenticated"/signed-URL path identity documents
+ * use, and must land in its own `profile-photos/` folder, well away from
+ * TeacherVerification's private `teacher-verification/` one.
+ */
+export const getSignedProfilePhotoUploadParams = ({ folder }) => {
+  if (!ensureConfigured()) {
+    return {
+      configured: false,
+      message:
+        "Profile photo uploads are not configured in this environment (missing CLOUDINARY_* env vars in .env).",
+    };
+  }
+
+  const timestamp = Math.round(Date.now() / 1000);
+  // No `type` key here (unlike getSignedUploadParams) — that's what makes
+  // Cloudinary sign and store this as its default PUBLIC "upload" delivery
+  // type, giving back a secure_url that's directly usable as photoUrl with
+  // no further signing step.
+  const paramsToSign = { timestamp, folder };
+  const signature = cloudinary.utils.api_sign_request(
+    paramsToSign,
+    process.env.CLOUDINARY_API_SECRET
+  );
+
+  return {
+    configured: true,
+    timestamp,
+    signature,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    folder,
+  };
+};
+
 export const isUploadConfigured = () => ensureConfigured();

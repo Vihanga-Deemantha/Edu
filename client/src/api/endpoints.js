@@ -29,6 +29,8 @@ export const profilesApi = {
   upsertTeacher: (body) => put("/profiles/teacher", body),
   getStudent: (userId) => get(`/profiles/student/${userId}`),
   upsertStudent: (body) => put("/profiles/student", body),
+  photoUploadSignature: (targetUserId) => get("/profiles/photo/upload-signature", targetUserId ? { targetUserId } : undefined),
+  updateMyPhoto: (photoUrl) => put("/profiles/me/photo", { photoUrl }),
 };
 
 export const verificationApi = {

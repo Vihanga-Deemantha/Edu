@@ -72,3 +72,26 @@ export const getStudentProfile = async (req, res, next) => {
     next(err);
   }
 };
+
+// ─── GET /api/profiles/photo/upload-signature  (protected: any role) ────────
+export const getPhotoUploadSignature = async (req, res, next) => {
+  try {
+    const params = await profilesService.getPhotoUploadSignature({
+      requesterId: req.user.id,
+      targetUserId: req.query.targetUserId,
+    });
+    res.status(200).json({ success: true, data: params });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── PUT /api/profiles/me/photo  (protected: parent, admin) ─────────────────
+export const updateMyPhoto = async (req, res, next) => {
+  try {
+    const user = await profilesService.updateMyPhoto(req.user.id, req.body.photoUrl);
+    res.status(200).json({ success: true, data: { photoUrl: user.photoUrl } });
+  } catch (err) {
+    next(err);
+  }
+};

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Avatar, ChipSelect, EmptyState, Field, PageLoader, Spinner, StatusBadge } from "../components/ui/index.jsx";
+import AvatarUpload from "../components/AvatarUpload.jsx";
 import LocationPicker from "../components/LocationPicker.jsx";
 import useAsync from "../hooks/useAsync.js";
 import useAuth from "../hooks/useAuth.js";
@@ -21,7 +22,7 @@ const EMPTY_TEACHER = {
   bio: "", bio_si: "", bio_ta: "", qualifications: [], experienceYears: 0,
   photoUrl: "", introVideoUrl: "", location: null, district: null, town: "",
 };
-const EMPTY_STUDENT = { gradeOrLevel: "", subjectsInterested: [], medium: [], location: null, district: null, town: "" };
+const EMPTY_STUDENT = { gradeOrLevel: "", subjectsInterested: [], medium: [], location: null, district: null, town: "", photoUrl: "" };
 
 const pickTeacher = (p) => ({
   ...EMPTY_TEACHER,
@@ -69,14 +70,14 @@ const DistrictTown = ({ form, set }) => (
 const TeacherForm = ({ form, set, errors, bioLang, setBioLang, verification }) => (
   <>
     <Section id="basic" title="Basic information" sub="Your name and photo appear on every listing.">
-      <div className="flex flex-wrap items-center gap-5">
-        <Avatar name={form._name} src={form.photoUrl} size={96} />
-        <div className="flex min-w-[240px] flex-1 flex-col gap-1.5">
-          <Field label="Profile photo URL" hint="A clear, friendly headshot. Profiles with a photo get more requests.">
-            <input className="input" type="url" placeholder="https://…" value={form.photoUrl || ""} onChange={(e) => set({ photoUrl: e.target.value })} />
-          </Field>
-        </div>
-      </div>
+      <AvatarUpload
+        name={form._name}
+        src={form.photoUrl}
+        size={96}
+        hint="A clear, friendly headshot. Profiles with a photo get more requests."
+        onUploaded={(photoUrl) => set({ photoUrl })}
+        onRemove={() => set({ photoUrl: null })}
+      />
       <div className="grid gap-[18px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
         <Field label="Full name" hint="Your name comes from your account.">
           <input className="input" value={form._name} disabled />
@@ -213,8 +214,17 @@ const TeacherForm = ({ form, set, errors, bioLang, setBioLang, verification }) =
 );
 
 // ─── Student (self, or a parent editing a child) ─────────────────────────────
-const StudentForm = ({ form, set, errors, forChild }) => (
+const StudentForm = ({ form, set, errors, forChild, targetUserId }) => (
   <Section id="learning" title="Learning preferences" sub={forChild ? `We use these to recommend teachers for ${forChild}.` : "We use these to recommend teachers on your Home page."}>
+    <AvatarUpload
+      name={form._name}
+      src={form.photoUrl}
+      size={88}
+      targetUserId={targetUserId}
+      hint={forChild ? `Optional. A friendly photo helps ${forChild} stand out when contacting teachers.` : "Optional. Shown to teachers you contact."}
+      onUploaded={(photoUrl) => set({ photoUrl })}
+      onRemove={() => set({ photoUrl: null })}
+    />
     <Field label="Grade / level">
       <select className="select" value={form.gradeOrLevel || ""} onChange={(e) => set({ gradeOrLevel: e.target.value })}>
         <option value="">Choose a level</option>
@@ -240,7 +250,7 @@ const StudentForm = ({ form, set, errors, forChild }) => (
 );
 
 const ProfileEditPage = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const role = user.role;
   const children = role === "parent" ? user.linkedChildIds || [] : [];
   const [childId, setChildId] = useState(children[0]?._id || "");
@@ -258,8 +268,11 @@ const ProfileEditPage = () => {
   const { data: verification } = useAsync(() => verificationApi.me(), [], { enabled: role === "teacher" });
 
   const initial = useMemo(
-    () => (role === "teacher" ? { ...pickTeacher(loaded), _name: user.name } : pickStudent(loaded)),
-    [loaded, role, user.name]
+    () =>
+      role === "teacher"
+        ? { ...pickTeacher(loaded), _name: user.name }
+        : { ...pickStudent(loaded), _name: role === "parent" ? child?.name : user.name },
+    [loaded, role, user.name, child]
   );
   const [form, setForm] = useState(initial);
   const [dirty, setDirty] = useState(false);
@@ -297,6 +310,7 @@ const ProfileEditPage = () => {
           ["Bio in a second language", Boolean(form.bio_si?.trim() || form.bio_ta?.trim())],
         ]
       : [
+          ["Profile photo", Boolean(form.photoUrl)],
           ["Grade selected", Boolean(form.gradeOrLevel)],
           ["At least one subject", form.subjectsInterested?.length > 0],
           ["Medium chosen", form.medium?.length > 0],
@@ -351,6 +365,7 @@ const ProfileEditPage = () => {
           medium: form.medium,
           district: form.district || null,
           town: form.town?.trim() || null,
+          photoUrl: form.photoUrl || null,
           ...(form.location ? { location: form.location } : {}),
         });
       }
@@ -363,17 +378,7 @@ const ProfileEditPage = () => {
     }
   };
 
-  if (role === "parent" && children.length === 0) {
-    return (
-      <div className="shell-narrow py-12">
-        <div className="card">
-          <EmptyState icon="users" title="Add a child first" action={<Link to="/children" className="btn btn-primary">Add a child</Link>}>
-            Profiles on a parent account belong to your children. Add a child to set their grade, subjects and preferences.
-          </EmptyState>
-        </div>
-      </div>
-    );
-  }
+  const noChildrenYet = role === "parent" && children.length === 0;
 
   const sections =
     role === "teacher"
@@ -392,6 +397,34 @@ const ProfileEditPage = () => {
         {role === "teacher" && <Link to={`/teachers/${user._id}`} className="btn btn-outline btn-sm">View public profile ↗</Link>}
       </div>
 
+      {role === "parent" && (
+        <Section id="own-photo" title="Your profile photo" sub="Shown to teachers when you message or send interest yourself — separate from your children's profiles below.">
+          <AvatarUpload
+            name={user.name}
+            src={user.photoUrl}
+            size={88}
+            onUploaded={async (photoUrl) => {
+              await profilesApi.updateMyPhoto(photoUrl);
+              await refreshUser();
+              toast.success("Photo updated");
+            }}
+            onRemove={async () => {
+              await profilesApi.updateMyPhoto(null);
+              await refreshUser();
+              toast.success("Photo removed");
+            }}
+          />
+        </Section>
+      )}
+
+      {noChildrenYet ? (
+        <div className="card">
+          <EmptyState icon="users" title="Add a child first" action={<Link to="/children" className="btn btn-primary">Add a child</Link>}>
+            Teaching profiles on a parent account belong to your children. Add a child to set their grade, subjects and preferences.
+          </EmptyState>
+        </div>
+      ) : (
+      <>
       {role === "parent" && (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm font-semibold text-ink-2">Editing profile for</span>
@@ -471,7 +504,7 @@ const ProfileEditPage = () => {
               {role === "teacher" ? (
                 <TeacherForm form={form} set={set} errors={errors} bioLang={bioLang} setBioLang={setBioLang} verification={verification} />
               ) : (
-                <StudentForm form={form} set={set} errors={errors} forChild={child?.name} />
+                <StudentForm form={form} set={set} errors={errors} forChild={child?.name} targetUserId={targetId} />
               )}
             </>
           )}
@@ -502,6 +535,8 @@ const ProfileEditPage = () => {
           </Section>
         </div>
       </div>
+      </>
+      )}
 
       {dirty && (
         <div

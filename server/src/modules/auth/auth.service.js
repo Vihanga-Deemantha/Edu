@@ -60,6 +60,7 @@ const publicUser = (user) => ({
   authProvider: user.authProvider,
   profileComplete: user.profileComplete,
   createdAt: user.createdAt,
+  photoUrl: user.photoUrl,
 });
 
 /**

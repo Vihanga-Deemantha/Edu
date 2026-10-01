@@ -122,6 +122,20 @@ const userSchema = new mongoose.Schema(
     },
 
     /**
+     * photoUrl — this account's avatar. For teacher/student, TeacherProfile/
+     * StudentProfile.photoUrl is the field of record (set via their own
+     * upsert endpoint and mirrored here by profiles.service.js purely so
+     * anywhere that only has the bare User doc, like the app header, can
+     * still render the right picture without an extra profile fetch). For
+     * parent and admin — neither has a public marketplace profile document —
+     * this IS the field of record, written directly via PUT /api/profiles/me/photo.
+     */
+    photoUrl: {
+      type: String,
+      default: null,
+    },
+
+    /**
      * PARENT-CHILD MODEL (Phase 0 decision):
      *
      * When a parent creates a child account via POST /api/auth/register-child,
