@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { LANGUAGES, LanguageContext } from "./languageContext.js";
+import { UI_STRINGS } from "../i18n/strings.js";
 
 const STORAGE_KEY = "edulink.lang";
 
@@ -37,7 +38,16 @@ export const LanguageProvider = ({ children }) => {
       const translated = obj[`${field}_${lang}`];
       return translated ? { text: translated, fallback: false } : { text: obj[field] || "", fallback: true };
     };
-    return { lang, setLang, localized, current: LANGUAGES.find((l) => l.code === lang) };
+    /**
+     * Static UI-chrome strings (nav, buttons, footer — see i18n/strings.js),
+     * as opposed to `localized` above, which reads a translation already
+     * attached to a piece of DB content (a listing description, a bio).
+     * `text` is both the lookup key and the English fallback, so a string
+     * with no translation yet still renders correctly instead of a blank or
+     * a raw key name.
+     */
+    const t = (text) => (lang === "en" ? text : UI_STRINGS[text]?.[lang] || text);
+    return { lang, setLang, localized, t, current: LANGUAGES.find((l) => l.code === lang) };
   }, [lang, setLang]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;

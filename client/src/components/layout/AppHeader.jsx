@@ -6,6 +6,7 @@ import { Avatar } from "../ui/index.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import { LanguagePill } from "./LanguageSwitcher.jsx";
 import useAuth from "../../hooks/useAuth.js";
+import { useLanguage } from "../../context/languageContext.js";
 import useClickOutside from "../../hooks/useClickOutside.js";
 import { roleLabel } from "../../lib/format.js";
 
@@ -68,6 +69,7 @@ const navClass = ({ isActive }) =>
   }`;
 
 const HeaderSearch = ({ className = "", style }) => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const location = useLocation();
@@ -92,7 +94,7 @@ const HeaderSearch = ({ className = "", style }) => {
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="What do you want to learn?"
+        placeholder={t("What do you want to learn?")}
         aria-label="Search teachers and classes"
         className="min-w-0 flex-1 border-0 bg-transparent text-[15px] font-medium text-ink outline-none"
       />
@@ -104,6 +106,7 @@ const HeaderSearch = ({ className = "", style }) => {
 };
 
 const AccountMenu = ({ user, onLogout }) => {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useClickOutside(ref, () => setOpen(false));
@@ -129,11 +132,11 @@ const AccountMenu = ({ user, onLogout }) => {
           </div>
           {links.map(([label, to]) => (
             <Link key={label} to={to} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-mist hover:text-ink">
-              {label}
+              {t(label)}
             </Link>
           ))}
           <button type="button" onClick={onLogout} className="block w-full rounded-lg border-0 bg-transparent px-3 py-2.5 text-left text-sm text-ink hover:bg-mist">
-            Log out
+            {t("Log out")}
           </button>
         </div>
       )}
@@ -143,6 +146,7 @@ const AccountMenu = ({ user, onLogout }) => {
 
 const AppHeader = () => {
   const { user, status, logout } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [drawer, setDrawer] = useState(false);
@@ -172,7 +176,7 @@ const AppHeader = () => {
         <nav className="hidden flex-none gap-1 lg:flex" aria-label="Primary">
           {nav.map(([label, to]) => (
             <NavLink key={to} to={to} end={to === "/dashboard"} className={navClass}>
-              {label}
+              {t(label)}
             </NavLink>
           ))}
         </nav>
@@ -189,10 +193,10 @@ const AppHeader = () => {
         ) : (
           <>
             <Link to="/login" className="flex-none text-[15px] font-semibold text-ink hover:text-primary">
-              Sign in
+              {t("Sign in")}
             </Link>
             <span className="hidden flex-none sm:inline-flex">
-              <Link to="/register" className="btn btn-primary">Join for free</Link>
+              <Link to="/register" className="btn btn-primary">{t("Join for free")}</Link>
             </span>
           </>
         )}
@@ -210,24 +214,24 @@ const AppHeader = () => {
             <HeaderSearch className="mb-3 flex md:hidden" />
             {nav.map(([label, to]) => (
               <NavLink key={to} to={to} end={to === "/dashboard"} className={navClass}>
-                {label}
+                {t(label)}
               </NavLink>
             ))}
             {authed &&
               (ACCOUNT_LINKS[user.role] || []).map(([label, to]) => (
                 <NavLink key={label} to={to.replace(":me", user._id)} className={navClass}>
-                  {label}
+                  {t(label)}
                 </NavLink>
               ))}
             <div className="mt-auto flex items-center justify-between border-t border-line pt-4">
               <LanguagePill />
               {authed ? (
                 <button type="button" className="btn btn-soft btn-sm" onClick={handleLogout}>
-                  Log out
+                  {t("Log out")}
                 </button>
               ) : (
                 <Link to="/register" className="btn btn-primary btn-sm">
-                  Join for free
+                  {t("Join for free")}
                 </Link>
               )}
             </div>
