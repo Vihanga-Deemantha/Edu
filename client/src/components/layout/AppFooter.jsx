@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { LanguageToggle } from "./LanguageSwitcher.jsx";
 import { useLanguage } from "../../context/languageContext.js";
 
 /** Compact footer for marketplace browsing and home pages. */
@@ -20,7 +19,6 @@ const AppFooter = () => {
           <a href="mailto:safety@edulink.lk" className="font-bold text-white hover:text-blue">{t("Report a problem")}</a>
           <a href="mailto:hello@edulink.lk" className="text-lavender hover:text-white">{t("Contact")}</a>
         </nav>
-        <LanguageToggle onDark />
       </div>
     </footer>
   );

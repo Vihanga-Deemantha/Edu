@@ -5,12 +5,16 @@ import { UI_STRINGS } from "../i18n/strings.js";
 const STORAGE_KEY = "edulink.lang";
 
 const readStored = () => {
-  try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    return LANGUAGES.some((l) => l.code === v) ? v : "en";
-  } catch {
-    return "en";
-  }
+  // The switcher UI is currently removed (see LanguageSwitcher.jsx — its
+  // exports are kept for a future re-enable, just unused right now by every
+  // page). With no control left for a visitor to ever choose si/ta
+  // themselves, always start in English rather than resurrecting whatever a
+  // browser happens to have stored from before — otherwise anyone whose
+  // localStorage still has an old "si"/"ta" value (e.g. from testing this
+  // feature pre-removal) would be stuck in that language with no way back.
+  // Re-enabling the switcher later is just reverting this function to read
+  // localStorage again, same as setLang below already still does on write.
+  return "en";
 };
 
 /**
