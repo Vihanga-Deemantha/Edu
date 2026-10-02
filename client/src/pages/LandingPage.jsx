@@ -4,6 +4,7 @@ import Brand from "../components/ui/Brand.jsx";
 import Icon from "../components/ui/Icon.jsx";
 import { Avatar, RatingLine, Stars, VerifiedBadge } from "../components/ui/index.jsx";
 import { LanguageToggle } from "../components/layout/LanguageSwitcher.jsx";
+import { useLanguage } from "../context/languageContext.js";
 import useAuth from "../hooks/useAuth.js";
 import useAsync from "../hooks/useAsync.js";
 import { useReducedMotion } from "../hooks/useReducedMotion.js";
@@ -116,6 +117,7 @@ const browseTo = (q) => `/browse?q=${encodeURIComponent(q)}`;
 
 const LandingHeader = () => {
   const { status } = useAuth();
+  const { t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const authed = status === "authenticated";
   return (
@@ -123,9 +125,9 @@ const LandingHeader = () => {
       <div className="shell flex items-center gap-[clamp(16px,2.4vw,32px)] whitespace-nowrap" style={{ height: 80 }}>
         <Brand />
         <nav className="hidden gap-1 text-[15px] font-medium md:flex">
-          <Link to="/browse" className="landing-nav-link rounded-lg px-3.5 py-[9px] hover:bg-mist">Explore</Link>
-          <a href="#parents" className="landing-nav-link rounded-lg px-3.5 py-[9px] hover:bg-mist">For parents</a>
-          <a href="#teach" className="landing-nav-link rounded-lg px-3.5 py-[9px] hover:bg-mist">For teachers</a>
+          <Link to="/browse" className="landing-nav-link rounded-lg px-3.5 py-[9px] hover:bg-mist">{t("Explore")}</Link>
+          <a href="#parents" className="landing-nav-link rounded-lg px-3.5 py-[9px] hover:bg-mist">{t("For parents")}</a>
+          <a href="#teach" className="landing-nav-link rounded-lg px-3.5 py-[9px] hover:bg-mist">{t("For teachers")}</a>
         </nav>
         <div className="flex-1" />
         <span className="hidden sm:block">
@@ -133,19 +135,19 @@ const LandingHeader = () => {
         </span>
         <button type="button" className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-lavender text-primary md:hidden" aria-label={mobileOpen ? "Close menu" : "Open menu"} aria-expanded={mobileOpen} aria-controls="landing-mobile-menu" onClick={() => setMobileOpen((open) => !open)}><Icon name={mobileOpen ? "x" : "menu"} size={20} /></button>
         {authed ? (
-          <Link to="/dashboard" className="btn btn-primary flex-none rounded-full"><span className="hidden sm:inline">Go to dashboard</span><span className="sm:hidden">Dashboard</span></Link>
+          <Link to="/dashboard" className="btn btn-primary flex-none rounded-full"><span className="hidden sm:inline">{t("Go to dashboard")}</span><span className="sm:hidden">{t("Dashboard")}</span></Link>
         ) : (
           <>
-            <Link to="/login" className="hidden flex-none text-[15px] font-semibold text-ink hover:text-primary md:block">Sign in</Link>
-            <Link to="/register" className="btn btn-primary flex-none rounded-full"><span className="max-[379px]:hidden">Join for free</span><span className="min-[380px]:hidden">Join</span></Link>
+            <Link to="/login" className="hidden flex-none text-[15px] font-semibold text-ink hover:text-primary md:block">{t("Sign in")}</Link>
+            <Link to="/register" className="btn btn-primary flex-none rounded-full"><span className="max-[379px]:hidden">{t("Join for free")}</span><span className="min-[380px]:hidden">{t("Join")}</span></Link>
           </>
         )}
       </div>
       {mobileOpen && <nav id="landing-mobile-menu" className="popover absolute right-4 top-[72px] flex w-[min(300px,calc(100vw-32px))] flex-col gap-1 p-4 md:hidden" aria-label="Mobile navigation">
-        <Link to="/browse" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">Explore classes</Link>
-        <a href="#parents" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">For parents</a>
-        <a href="#teach" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">For teachers</a>
-        {!authed && <Link to="/login" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">Sign in</Link>}
+        <Link to="/browse" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">{t("Explore classes")}</Link>
+        <a href="#parents" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">{t("For parents")}</a>
+        <a href="#teach" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">{t("For teachers")}</a>
+        {!authed && <Link to="/login" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">{t("Sign in")}</Link>}
         <div className="border-t border-line px-3 pt-3"><LanguageToggle /></div>
       </nav>}
     </header>
@@ -194,6 +196,7 @@ const DesignPhoto = ({ src, alt, style, className }) => {
 };
 
 const LandingPage = () => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [role, setRole] = useState("Students");
@@ -608,8 +611,8 @@ const LandingPage = () => {
               ))}
             </div>
             <div className="mt-1.5 flex flex-wrap gap-3">
-              <Link to="/register?role=teacher" className="btn btn-light btn-lg rounded-full">Become a teacher</Link>
-              <Link to="/verification" className="btn btn-lg rounded-full border-lavender bg-transparent hover:border-white" style={{ color: "#fff" }}>How verification works</Link>
+              <Link to="/register?role=teacher" className="btn btn-light btn-lg rounded-full">{t("Become a teacher")}</Link>
+              <Link to="/verification" className="btn btn-lg rounded-full border-lavender bg-transparent hover:border-white" style={{ color: "#fff" }}>{t("How verification works")}</Link>
             </div>
           </div>
           <div className="relative" style={{ height: "clamp(320px,34vw,420px)" }}>
@@ -630,23 +633,23 @@ const LandingPage = () => {
         <div className="shell-narrow grid gap-9 pb-8 pt-14" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
           <div className="flex flex-col gap-3.5">
             <Brand onDark mark={false} />
-            <span className="serif text-base leading-normal text-lavender">Verified teachers for every learner in Sri Lanka.</span>
+            <span className="serif text-base leading-normal text-lavender">{t("Verified teachers for every learner in Sri Lanka.")}</span>
           </div>
           {FOOTER.map((col) => (
             <div key={col.h} className="flex flex-col gap-2.5 text-[15px]">
-              <span className="mb-1 text-xs font-bold tracking-[.12em]">{col.h}</span>
+              <span className="mb-1 text-xs font-bold tracking-[.12em]">{t(col.h)}</span>
               {col.links.map(([label, to]) =>
                 to.startsWith("mailto:") ? (
-                  <a key={label} href={to} className="landing-footer-link">{label}</a>
+                  <a key={label} href={to} className="landing-footer-link">{t(label)}</a>
                 ) : (
-                  <Link key={label} to={to} className="landing-footer-link">{label}</Link>
+                  <Link key={label} to={to} className="landing-footer-link">{t(label)}</Link>
                 )
               )}
             </div>
           ))}
         </div>
         <div className="shell-narrow flex flex-wrap items-center justify-between gap-4 border-t pb-8 pt-5 text-[13px] text-lavender" style={{ borderColor: "rgba(173,187,218,.25)" }}>
-          <span>© {new Date().getFullYear()} EduLink. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} EduLink. {t("All rights reserved.")}</span>
           <LanguageToggle onDark />
         </div>
       </footer>
