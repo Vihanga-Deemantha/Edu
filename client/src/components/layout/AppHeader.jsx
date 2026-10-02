@@ -4,7 +4,6 @@ import Brand from "../ui/Brand.jsx";
 import Icon from "../ui/Icon.jsx";
 import { Avatar } from "../ui/index.jsx";
 import NotificationBell from "./NotificationBell.jsx";
-import { LanguagePill } from "./LanguageSwitcher.jsx";
 import useAuth from "../../hooks/useAuth.js";
 import { useLanguage } from "../../context/languageContext.js";
 import useClickOutside from "../../hooks/useClickOutside.js";
@@ -182,9 +181,6 @@ const AppHeader = () => {
         </nav>
         <HeaderSearch className="hidden min-w-[52px] max-w-[560px] md:flex" style={{ flex: "3 1 420px" }} />
         <div className="flex-1" />
-        <span className="hidden sm:block">
-          <LanguagePill />
-        </span>
         {authed ? (
           <>
             <NotificationBell />
@@ -223,8 +219,7 @@ const AppHeader = () => {
                   {t(label)}
                 </NavLink>
               ))}
-            <div className="mt-auto flex items-center justify-between border-t border-line pt-4">
-              <LanguagePill />
+            <div className="mt-auto flex items-center justify-end border-t border-line pt-4">
               {authed ? (
                 <button type="button" className="btn btn-soft btn-sm" onClick={handleLogout}>
                   {t("Log out")}

@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import Brand from "../components/ui/Brand.jsx";
 import Icon from "../components/ui/Icon.jsx";
 import { Avatar, RatingLine, Stars, VerifiedBadge } from "../components/ui/index.jsx";
-import { LanguageToggle } from "../components/layout/LanguageSwitcher.jsx";
 import { useLanguage } from "../context/languageContext.js";
 import useAuth from "../hooks/useAuth.js";
 import useAsync from "../hooks/useAsync.js";
@@ -130,9 +129,6 @@ const LandingHeader = () => {
           <a href="#teach" className="landing-nav-link rounded-lg px-3.5 py-[9px] hover:bg-mist">{t("For teachers")}</a>
         </nav>
         <div className="flex-1" />
-        <span className="hidden sm:block">
-          <LanguageToggle />
-        </span>
         <button type="button" className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-lavender text-primary md:hidden" aria-label={mobileOpen ? "Close menu" : "Open menu"} aria-expanded={mobileOpen} aria-controls="landing-mobile-menu" onClick={() => setMobileOpen((open) => !open)}><Icon name={mobileOpen ? "x" : "menu"} size={20} /></button>
         {authed ? (
           <Link to="/dashboard" className="btn btn-primary flex-none rounded-full"><span className="hidden sm:inline">{t("Go to dashboard")}</span><span className="sm:hidden">{t("Dashboard")}</span></Link>
@@ -148,7 +144,6 @@ const LandingHeader = () => {
         <a href="#parents" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">{t("For parents")}</a>
         <a href="#teach" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">{t("For teachers")}</a>
         {!authed && <Link to="/login" onClick={() => setMobileOpen(false)} className="landing-nav-link rounded-lg px-3 py-2 hover:bg-mist">{t("Sign in")}</Link>}
-        <div className="border-t border-line px-3 pt-3"><LanguageToggle /></div>
       </nav>}
     </header>
   );
@@ -650,7 +645,6 @@ const LandingPage = () => {
         </div>
         <div className="shell-narrow flex flex-wrap items-center justify-between gap-4 border-t pb-8 pt-5 text-[13px] text-lavender" style={{ borderColor: "rgba(173,187,218,.25)" }}>
           <span>© {new Date().getFullYear()} EduLink. {t("All rights reserved.")}</span>
-          <LanguageToggle onDark />
         </div>
       </footer>
     </div>
