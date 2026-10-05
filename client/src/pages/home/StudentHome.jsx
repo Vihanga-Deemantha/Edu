@@ -36,12 +36,12 @@ const StudentHome = () => {
   const done = checks.filter(Boolean).length + 1; // +1: account created & verified
 
   return (
-    <div className="shell flex flex-col gap-8 pb-20 pt-11">
-      <Greeting name={user.name} actions={<Link to="/browse" className="btn btn-primary">Find a new teacher</Link>} />
+    <div className="shell flex flex-col gap-6 pb-16 pt-6 sm:gap-8 sm:pb-20 sm:pt-11">
+      <Greeting name={user.name} actions={<Link to="/browse" className="btn btn-primary w-full sm:w-auto">Find a new teacher</Link>} />
 
       {!hideProfile && done < 5 && (
-        <div className="card-mist flex flex-wrap items-center gap-6 px-[26px] py-[22px]">
-          <div className="flex flex-col gap-2.5" style={{ flex: "1 1 320px" }}>
+        <div className="card-mist flex flex-col items-stretch gap-5 rounded-2xl p-5 sm:flex-row sm:items-center sm:gap-6 sm:px-[26px] sm:py-[22px]">
+          <div className="flex min-w-0 flex-1 flex-col gap-2.5 sm:min-w-[320px]">
             <span className="serif text-[19px] font-bold">Finish your profile for better matches</span>
             <div className="flex items-center gap-3">
               <div className="h-2 flex-1 overflow-hidden rounded bg-white"><div className="h-full rounded bg-primary" style={{ width: `${(done / 5) * 100}%` }} /></div>
@@ -50,7 +50,7 @@ const StudentHome = () => {
             <span className="text-sm text-ink-2">Add your subjects, grade and preferred medium so we can recommend the right teachers.</span>
           </div>
           <div className="flex items-center gap-2.5">
-            <Link to="/profile/edit" className="btn btn-primary btn-sm">Complete profile</Link>
+            <Link to="/profile/edit" className="btn btn-primary btn-sm flex-1 sm:flex-none">Complete profile</Link>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setHideProfile(true)}>Later</button>
           </div>
         </div>
@@ -134,7 +134,7 @@ const StudentHome = () => {
           <section className="flex flex-col gap-[18px]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="h-block">Your interests</h2>
-              <div className="seg">
+              <div className="seg no-scrollbar max-w-full overflow-x-auto">
                 {FILTERS.map((f) => (
                   <button key={f} type="button" className={`seg-item capitalize ${filter === f ? "on" : ""}`} onClick={() => setFilter(f)}>{f}</button>
                 ))}
@@ -151,7 +151,7 @@ const StudentHome = () => {
                         ? { to: `/browse?subject=${encodeURIComponent(i.listing?.subject || "")}`, label: "Find similar" }
                         : { to: "/interests?tab=sent", label: "View" };
                 return (
-                  <div key={i._id} className="divider-row grid items-center gap-5 px-[22px] py-[18px]" style={{ gridTemplateColumns: "minmax(0,1fr) auto auto" }}>
+                  <div key={i._id} className="divider-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-[18px] sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:gap-5 sm:px-[22px]">
                     <div className="flex min-w-0 items-center gap-3.5">
                       <Avatar name={i.toUser?.name} src={i.toUser?.photoUrl} size={40} />
                       <div className="min-w-0">
@@ -160,7 +160,7 @@ const StudentHome = () => {
                       </div>
                     </div>
                     <StatusBadge status={i.status} />
-                    <Link to={action.to} className="min-w-[90px] text-right text-sm font-semibold">{action.label}</Link>
+                    <Link to={action.to} className="col-span-2 text-right text-sm font-semibold sm:col-span-1 sm:min-w-[90px]">{action.label}</Link>
                   </div>
                 );
               })}

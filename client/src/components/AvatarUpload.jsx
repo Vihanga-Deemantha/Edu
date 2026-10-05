@@ -34,7 +34,8 @@ const AvatarUpload = ({ name, src, targetUserId, size = 96, hint, onUploaded, on
       }
       await onUploaded(res.secureUrl);
     } catch (err) {
-      setError(err.message || "Upload failed. Please try again.");
+      const technicalConfigError = /cloud_name|api key|unknown api/i.test(err.message || "");
+      setError(technicalConfigError ? "Photo uploads are temporarily unavailable. Please try again later." : err.message || "Upload failed. Please try again.");
     } finally {
       setProgress(null);
     }
@@ -43,7 +44,7 @@ const AvatarUpload = ({ name, src, targetUserId, size = 96, hint, onUploaded, on
   const busy = progress !== null;
 
   return (
-    <div className="flex flex-wrap items-center gap-5">
+    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-5">
       <div className="relative flex-none" style={{ width: size, height: size }}>
         <Avatar name={name} src={src} size={size} />
         {busy && (
@@ -52,7 +53,7 @@ const AvatarUpload = ({ name, src, targetUserId, size = 96, hint, onUploaded, on
           </div>
         )}
       </div>
-      <div className="flex min-w-[220px] flex-1 flex-col gap-1.5">
+      <div className="flex w-full min-w-0 flex-1 flex-col gap-2">
         {hint && <span className="text-sm text-ink-2">{hint}</span>}
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="btn btn-outline btn-sm" onClick={() => inputRef.current?.click()} disabled={busy}>
@@ -64,7 +65,7 @@ const AvatarUpload = ({ name, src, targetUserId, size = 96, hint, onUploaded, on
             </button>
           )}
         </div>
-        {error ? <span className="field-err">{error}</span> : <span className="text-xs text-ink-2">JPG, PNG or WEBP · up to 10 MB</span>}
+        {error ? <span className="field-err break-words rounded-lg bg-danger-soft px-3 py-2 leading-snug">{error}</span> : <span className="text-xs text-ink-2">JPG, PNG or WEBP · up to 10 MB</span>}
       </div>
       <input
         ref={inputRef}

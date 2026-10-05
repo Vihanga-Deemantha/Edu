@@ -3,24 +3,24 @@ import { Avatar, RatingLine, VerifiedBadge } from "../../components/ui/index.jsx
 import { firstName, formatPrice, greeting, todayEyebrow } from "../../lib/format.js";
 
 export const Greeting = ({ name, actions }) => (
-  <div className="flex flex-wrap items-end justify-between gap-5">
+  <div className="flex flex-wrap items-start justify-between gap-4 sm:items-end sm:gap-5">
     <div className="flex flex-col gap-2">
       <span className="text-[13px] font-semibold tracking-[.1em] text-ink-2">{todayEyebrow()}</span>
       <h1 className="h-page">
         {greeting()}, <em className="text-primary">{firstName(name)}</em>
       </h1>
     </div>
-    {actions && <div className="flex flex-wrap gap-2.5">{actions}</div>}
+    {actions && <div className="flex w-full flex-wrap gap-2.5 sm:w-auto">{actions}</div>}
   </div>
 );
 
 /** Small summary tile: eyebrow + serif headline + body + link. `dark` = the ink "next class" tile. */
 export const SummaryCard = ({ eyebrow, title, children, dark, footer }) => (
   <div
-    className={`flex flex-col gap-3 rounded-2xl p-6 ${dark ? "bg-ink text-white" : "card"}`}
+    className={`flex flex-col gap-3 rounded-2xl p-5 sm:p-6 ${dark ? "bg-ink text-white" : "card"}`}
   >
     <span className="text-xs font-bold tracking-[.12em]" style={{ color: dark ? "var(--lavender)" : "var(--primary)" }}>{eyebrow}</span>
-    <span className="serif text-[26px] leading-tight">{title}</span>
+    <span className="serif text-[24px] leading-tight sm:text-[26px]">{title}</span>
     {children}
     {footer && <div className="mt-auto flex flex-wrap gap-2.5 pt-1.5">{footer}</div>}
   </div>

@@ -34,7 +34,7 @@ const pickStudent = (p) => ({
 });
 
 const Section = ({ id, title, sub, children, dark }) => (
-  <section id={id} className={`flex flex-col gap-[22px] rounded-[18px] p-7 ${dark ? "bg-ink text-white" : "card"}`} style={{ scrollMarginTop: 110 }}>
+  <section id={id} className={`flex flex-col gap-5 rounded-[18px] p-5 sm:gap-[22px] sm:p-7 ${dark ? "bg-ink text-white" : "card"}`} style={{ scrollMarginTop: 110 }}>
     {title && (
       <div className="flex flex-col gap-1">
         <h2 className="serif text-[28px]">{title}</h2>
@@ -386,7 +386,7 @@ const ProfileEditPage = () => {
       : [["learning", "Learning preferences"], ["account", "Account"]];
 
   return (
-    <div className="shell-narrow flex flex-col gap-7 pb-36 pt-9">
+    <div className="shell-narrow flex flex-col gap-5 pb-36 pt-6 sm:gap-7 sm:pt-9">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-2">
           <span className="eyebrow">{role} account</span>
@@ -453,9 +453,9 @@ const ProfileEditPage = () => {
         </div>
       )}
 
-      <div className="flex flex-wrap items-start gap-9">
-        <aside className="sticky top-[104px] flex flex-col gap-4" style={{ flex: "1 1 240px", maxWidth: 280 }}>
-          <nav className="card flex flex-col gap-0.5 p-2" aria-label="Sections">
+      <div className="flex flex-wrap items-start gap-5 lg:gap-9">
+        <aside className="flex w-full flex-col gap-4 lg:sticky lg:top-[104px] lg:w-auto lg:max-w-[280px]" style={{ flex: "1 1 240px" }}>
+          <nav className="card hidden flex-col gap-0.5 p-2 lg:flex" aria-label="Sections">
             {sections.map(([id, label]) => (
               <a key={id} href={`#${id}`} className="flex items-center justify-between rounded-[10px] px-3.5 py-[11px] text-[15px] font-medium text-ink hover:bg-mist hover:text-ink">
                 {label}
@@ -465,7 +465,7 @@ const ProfileEditPage = () => {
               </a>
             ))}
           </nav>
-          <div className="card-mist flex flex-col gap-3 rounded-2xl p-5">
+          <div className="card-mist flex w-full flex-col gap-3 rounded-2xl p-4 sm:p-5">
             <div className="flex items-baseline justify-between">
               <span className="serif text-lg font-bold">Profile strength</span>
               <span className="text-sm font-bold text-primary">{pct}%</span>
@@ -473,9 +473,9 @@ const ProfileEditPage = () => {
             <div className="h-2 overflow-hidden rounded bg-white">
               <div className="h-full rounded bg-primary transition-[width]" style={{ width: `${pct}%` }} />
             </div>
-            <div className="flex flex-col gap-[7px]">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 lg:flex lg:flex-col lg:gap-[7px]">
               {checklist.map(([label, ok]) => (
-                <span key={label} className="flex items-center gap-2 text-[13px]" style={{ color: ok ? "var(--ink)" : "var(--ink-2)" }}>
+                <span key={label} className="flex min-w-0 items-center gap-2 text-[13px]" style={{ color: ok ? "var(--ink)" : "var(--ink-2)" }}>
                   <span
                     className="flex h-4 w-4 flex-none items-center justify-center rounded-full border-[1.5px] text-[9px] text-white"
                     style={{ borderColor: ok ? "var(--primary)" : "var(--lavender)", background: ok ? "var(--primary)" : "#fff" }}
@@ -489,7 +489,7 @@ const ProfileEditPage = () => {
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-col gap-6" style={{ flex: "999 1 520px" }}>
+        <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6" style={{ flex: "999 1 520px" }}>
           {loading ? (
             <PageLoader />
           ) : (
@@ -540,12 +540,12 @@ const ProfileEditPage = () => {
 
       {dirty && (
         <div
-          className="rise fixed bottom-[22px] left-1/2 z-50 flex -translate-x-1/2 items-center gap-3.5 rounded-[14px] bg-ink py-3 pl-5 pr-3 text-white"
+          className="rise fixed bottom-3 left-1/2 z-50 flex -translate-x-1/2 flex-wrap items-center gap-2 rounded-[14px] bg-ink p-3 text-white sm:bottom-[22px] sm:flex-nowrap sm:gap-3.5 sm:py-3 sm:pl-5 sm:pr-3"
           style={{ width: "min(640px, calc(100% - 32px))", boxShadow: "0 24px 50px -16px rgba(22,27,63,.55)" }}
           role="status"
         >
           <span className="h-2 w-2 flex-none rounded-full bg-blue" />
-          <span className="flex-1 text-sm font-medium">{Object.keys(errors).length ? "Fix the highlighted fields to save." : "You have unsaved changes"}</span>
+          <span className="min-w-0 flex-1 text-sm font-medium">{Object.keys(errors).length ? "Fix the highlighted fields to save." : "You have unsaved changes"}</span>
           <button type="button" className="border-0 bg-transparent px-3.5 py-2.5 text-sm font-semibold text-lavender hover:text-white" onClick={() => { setForm(initial); setDirty(false); setErrors({}); }}>
             Discard
           </button>

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Brand from "../ui/Brand.jsx";
 import Icon from "../ui/Icon.jsx";
@@ -63,7 +64,7 @@ const ACCOUNT_LINKS = {
 };
 
 const navClass = ({ isActive }) =>
-  `relative whitespace-nowrap rounded-lg px-[clamp(8px,1vw,14px)] py-[9px] text-[15px] transition-colors hover:bg-mist hover:text-ink ${
+  `relative flex items-center whitespace-nowrap rounded-lg px-[clamp(8px,1vw,14px)] py-[9px] text-[15px] transition-colors hover:bg-mist hover:text-ink ${
     isActive ? "bg-mist font-bold text-primary" : "font-medium text-ink"
   }`;
 
@@ -165,9 +166,9 @@ const AppHeader = () => {
 
   return (
     <header className="sticky top-0 z-40 border-b border-line" style={{ background: "rgba(251,250,253,.94)", backdropFilter: "blur(10px)" }}>
-      <div className="shell flex items-center gap-[clamp(14px,2vw,28px)] whitespace-nowrap" style={{ height: 80 }}>
+      <div className="shell flex h-16 items-center gap-2 whitespace-nowrap sm:h-[72px] sm:gap-3 lg:h-20 lg:gap-[clamp(14px,2vw,28px)]">
         <span className="lg:hidden">
-          <button type="button" className="btn btn-ghost -ml-2 p-2" aria-label="Open menu" onClick={() => setDrawer(true)}>
+          <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full border-0 bg-transparent text-ink hover:bg-mist" aria-label="Open menu" onClick={() => setDrawer(true)}>
             <Icon name="menu" />
           </button>
         </span>
@@ -180,7 +181,7 @@ const AppHeader = () => {
           ))}
         </nav>
         <HeaderSearch className="hidden min-w-[52px] max-w-[560px] md:flex" style={{ flex: "3 1 420px" }} />
-        <div className="flex-1" />
+        <div className="min-w-0 flex-1" />
         {authed ? (
           <>
             <NotificationBell />
@@ -198,10 +199,10 @@ const AppHeader = () => {
         )}
       </div>
 
-      {drawer && (
-        <div className="modal-backdrop items-stretch justify-start p-0 lg:hidden" onMouseDown={(e) => e.target === e.currentTarget && setDrawer(false)}>
-          <div className="flex h-full w-[300px] max-w-[85vw] flex-col gap-2 overflow-y-auto bg-white p-5">
-            <div className="mb-3 flex items-center justify-between">
+      {drawer && createPortal((
+        <div className="fixed inset-0 z-[70] flex items-stretch justify-start bg-[rgba(22,27,63,.45)] lg:hidden" onMouseDown={(e) => e.target === e.currentTarget && setDrawer(false)}>
+          <div className="flex min-h-full w-[min(88vw,340px)] flex-col gap-2 overflow-y-auto bg-white p-5 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between border-b border-line pb-4">
               <Brand to={authed ? "/dashboard" : "/"} size={22} />
               <button type="button" className="btn btn-ghost p-2" aria-label="Close menu" onClick={() => setDrawer(false)}>
                 <Icon name="x" />
@@ -232,7 +233,7 @@ const AppHeader = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </header>
   );
 };

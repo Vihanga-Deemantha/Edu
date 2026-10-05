@@ -11,7 +11,7 @@ const Brand = ({ to = "/", onDark = false, mark = true, size = 25, suffix }) => 
   return (
   <Link to={to} className="flex flex-none items-center gap-2.5" style={{ color: onDark ? "#fff" : "var(--ink)" }}>
     {mark && !logoFailed && (
-      <img src="/design/logo-mark.png" alt="" onError={() => setLogoFailed(true)} style={{ height: 32, width: "auto", flex: "none" }} />
+      <img src="/design/logo-mark.png" alt="" onError={() => setLogoFailed(true)} className="h-7 w-auto flex-none sm:h-8" />
     )}
     {mark && logoFailed && (
       <span
@@ -22,7 +22,7 @@ const Brand = ({ to = "/", onDark = false, mark = true, size = 25, suffix }) => 
       </span>
     )}
     <span className="flex flex-col leading-none">
-      <span style={{ font: `700 ${size}px var(--font-display)`, letterSpacing: "-.01em" }}>
+      <span style={{ font: `700 clamp(21px, 5.8vw, ${size}px) var(--font-display)`, letterSpacing: "-.01em" }}>
         Edu<span style={{ color: onDark ? "var(--blue)" : "var(--primary)" }}>Link</span>
       </span>
       {suffix && (
