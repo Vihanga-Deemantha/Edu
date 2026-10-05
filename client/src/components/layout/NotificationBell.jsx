@@ -67,9 +67,9 @@ const NotificationBell = () => {
         onClick={() => setOpen((o) => !o)}
         aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
         aria-expanded={open}
-        className="relative flex items-center justify-center rounded-full bg-white text-ink transition-colors hover:border-primary"
+        className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink transition-colors hover:border-primary sm:h-[42px] sm:w-[42px]"
         style={{
-          width: 42, height: 42, border: "1px solid var(--mist)",
+          border: "1px solid var(--mist)",
           boxShadow: "0 1px 2px rgba(22,27,63,.05), 0 6px 16px -8px rgba(61,82,160,.35)",
         }}
       >
