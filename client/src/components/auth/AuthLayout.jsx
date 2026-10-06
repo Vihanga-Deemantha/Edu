@@ -18,7 +18,7 @@ const AuthLayout = ({ aside, children, banner }) => (
     >
       <main className="relative z-[3] flex flex-col justify-center py-14" style={{ flex: "1 1 420px", paddingInline: "clamp(28px,6vw,88px)" }}>
         <div className="flex w-full max-w-[380px] flex-col gap-[26px]">
-          <Link to="/" className="self-start"><img src="/design/logo-full.png" alt="EduLink" className="h-[34px] w-auto" /></Link>
+          <Link to="/" className="self-start"><img src="/design/logo-full.webp" alt="EduLink" className="h-[34px] w-auto" width="164" height="34" decoding="async" /></Link>
           {banner && (
             <div className="rise flex items-center gap-3 rounded-[10px] border bg-mist px-4 py-3.5 text-sm font-medium" style={{ borderColor: "var(--lavender)" }}>
               <span className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full bg-primary text-xs text-white">✓</span>
@@ -47,7 +47,7 @@ const AuthLayout = ({ aside, children, banner }) => (
   </div>
 );
 
-// Real per-screen illustration (design_handoff_edulink/images/auth-*.png,
+// Real per-screen illustration (design_handoff_edulink/images/auth-*.webp,
 // dropped into client/public/design/). Falls back to a CSS-drawn "notice
 // card" mock — matching the aside's own palette — if the asset isn't there.
 const AsideIllustration = ({ src, alt }) => {
@@ -59,6 +59,7 @@ const AsideIllustration = ({ src, alt }) => {
         key={src}
         src={src}
         alt={alt || ""}
+        decoding="async"
         onError={() => setFailed(true)}
         className="illustration-fade absolute inset-0 h-full w-full object-contain object-bottom"
         style={{ WebkitMaskImage: "radial-gradient(ellipse 72% 68% at 50% 58%,#000 62%,transparent 100%)", maskImage: "radial-gradient(ellipse 72% 68% at 50% 58%,#000 62%,transparent 100%)" }}

@@ -124,7 +124,7 @@ const VerifyOtpPage = () => {
   // A Google account arrives here with its email already verified; only the phone is left.
   const emailPreVerified = status === "otp_pending" && user?.emailVerified;
   const userId = pendingUserId || user?._id || user?.id;
-  const aside = { title: "One last step.", sub: "Verifying your email and phone keeps EduLink safe for everyone, especially children.", illustration: "/design/auth-verify.png" };
+  const aside = { title: "One last step.", sub: "Verifying your email and phone keeps EduLink safe for everyone, especially children.", illustration: "/design/auth-verify.webp" };
 
   if (!userId && status !== "loading" && status !== "otp_pending") {
     return (
