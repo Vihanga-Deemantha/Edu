@@ -47,14 +47,24 @@ export const hashToken = (token) => {
 };
 
 /**
- * Sets the refresh token as an httpOnly, sameSite=strict cookie.
- * In production, the 'secure' flag ensures it only travels over HTTPS.
+ * Cookie attributes must match the deployment topology. In production the
+ * frontend (Vercel) and API (Render) are different sites, so SameSite=Strict
+ * causes browsers to reject or withhold the refresh cookie. SameSite=None is
+ * required for that credentialed cross-site request and, by browser rule,
+ * must be paired with Secure. Local development stays Lax over HTTP.
  */
+const refreshCookieSecurity = () => {
+  const production = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure: production,
+    sameSite: production ? "none" : "lax",
+  };
+};
+
 export const setRefreshTokenCookie = (res, token) => {
   res.cookie("refreshToken", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    ...refreshCookieSecurity(),
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
   });
 };
@@ -63,9 +73,7 @@ export const setRefreshTokenCookie = (res, token) => {
  * Clears the refresh token cookie (used on logout).
  */
 export const clearRefreshTokenCookie = (res) => {
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  });
+  // Clearing must use the same security attributes as setting; otherwise the
+  // browser treats it as a different cookie and logout leaves the real one.
+  res.clearCookie("refreshToken", refreshCookieSecurity());
 };
