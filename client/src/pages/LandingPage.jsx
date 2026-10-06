@@ -14,12 +14,12 @@ const SCENE_MS = 7000;
 
 // The hero's three rotating role-scenes, from "EduLink Landing v2" — each
 // with its own headline, search placeholder, CTA and a couple of floating
-// stat chips over a role photo (client/public/design/hero-*.png).
+// stat chips over a role photo (client/public/design/hero-*.webp).
 const HERO_SCENES = [
   {
     role: "Students", eyebrow: "FOR STUDENTS", pre: "Learn from teachers you can", word: "trust",
     sub: "Verified teachers across Sri Lanka for O/L, A/L, languages and more, searchable by subject and distance.",
-    img: "/design/hero-student.png", alt: "Smiling student holding exercise books",
+    img: "/design/hero-student.webp", alt: "Smiling student holding exercise books",
     blobBg: "var(--lavender)", blobRadius: "58% 42% 52% 48% / 46% 54% 46% 54%", ctaLabel: "Find a teacher", ctaTo: "/browse",
     placeholder: "What do you want to learn? e.g. A/L Physics",
     chips: [
@@ -31,7 +31,7 @@ const HERO_SCENES = [
   {
     role: "Parents", eyebrow: "FOR PARENTS", pre: "Find classes your child will", word: "love",
     sub: "Link your child to your account, choose only fully verified teachers, and see every message and booking.",
-    img: "/design/hero-parent.png", alt: "Mother standing with her son",
+    img: "/design/hero-parent.webp", alt: "Mother standing with her son",
     blobBg: "var(--blue)", blobRadius: "46% 54% 40% 60% / 58% 42% 58% 42%", ctaLabel: "Add your child", ctaTo: "/children",
     placeholder: "e.g. Grade 5 scholarship maths near Galle",
     chips: [
@@ -43,7 +43,7 @@ const HERO_SCENES = [
   {
     role: "Teachers", eyebrow: "FOR TEACHERS", pre: "Teach on your own", word: "terms",
     sub: "Post subject ads, earn a verified badge and receive interest from matched students.",
-    img: "/design/hero-teacher.png", alt: "Teacher holding a tablet",
+    img: "/design/hero-teacher.webp", alt: "Teacher holding a tablet",
     blobBg: "var(--primary)", blobRadius: "52% 48% 60% 40% / 42% 58% 42% 58%", ctaLabel: "Become a teacher", ctaTo: "/register?role=teacher",
     placeholder: "Search what other teachers offer",
     chips: [
@@ -71,12 +71,12 @@ const WHY_TRUST = [
 ];
 
 const CATEGORY_PHOTOS = [
-  { name: "Mathematics", img: "cat-maths.png", levels: "Grade 6 to A/L Combined Maths" },
-  { name: "Science", img: "cat-science.png", levels: "Physics · Chemistry · Biology" },
-  { name: "English", img: "cat-english.png", levels: "Spoken English to IELTS" },
-  { name: "ICT", img: "cat-ict.png", levels: "O/L, A/L and programming" },
-  { name: "Music", img: "cat-music.png", levels: "Piano, guitar, Eastern music" },
-  { name: "Languages", img: "cat-languages.png", levels: "Sinhala, Tamil, Japanese, French" },
+  { name: "Mathematics", img: "cat-maths.webp", levels: "Grade 6 to A/L Combined Maths" },
+  { name: "Science", img: "cat-science.webp", levels: "Physics · Chemistry · Biology" },
+  { name: "English", img: "cat-english.webp", levels: "Spoken English to IELTS" },
+  { name: "ICT", img: "cat-ict.webp", levels: "O/L, A/L and programming" },
+  { name: "Music", img: "cat-music.webp", levels: "Piano, guitar, Eastern music" },
+  { name: "Languages", img: "cat-languages.webp", levels: "Sinhala, Tamil, Japanese, French" },
 ];
 
 const CHIPS = ["O/L Maths", "A/L Physics", "Spoken English", "Piano", "Cambridge IGCSE"];
@@ -184,10 +184,10 @@ const TeacherCard = ({ listing }) => {
 
 // A design photo that quietly disappears (revealing its colored backdrop)
 // instead of showing a broken-image icon if the asset isn't there yet.
-const DesignPhoto = ({ src, alt, style, className }) => {
+const DesignPhoto = ({ src, alt, style, className, loading = "lazy", fetchPriority = "auto" }) => {
   const [failed, setFailed] = useState(false);
   if (failed) return null;
-  return <img src={src} alt={alt} style={style} className={className} onError={() => setFailed(true)} />;
+  return <img src={src} alt={alt} style={style} className={className} loading={loading} fetchPriority={fetchPriority} decoding="async" onError={() => setFailed(true)} />;
 };
 
 const LandingPage = () => {
@@ -347,6 +347,8 @@ const LandingPage = () => {
                   <DesignPhoto
                     src={sc.img}
                     alt={sc.alt}
+                    loading={i === 0 ? "eager" : "lazy"}
+                    fetchPriority={i === 0 ? "high" : "low"}
                     style={{ position: "absolute", left: 0, right: 0, bottom: 0, width: "100%", height: "100%", objectFit: "contain", objectPosition: "center bottom", filter: "drop-shadow(0 24px 30px rgba(22,27,63,.22))" }}
                   />
                 </div>
@@ -515,10 +517,10 @@ const LandingPage = () => {
         <div className="grid items-center gap-16" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 440px), 1fr))" }}>
           <div className="relative" style={{ height: "clamp(420px,42vw,540px)" }}>
             <div className="absolute overflow-hidden rounded-3xl bg-lavender" style={{ left: 0, top: 0, width: "52%", height: "62%" }}>
-              <DesignPhoto src="/design/trust-parent.png" alt="Mother and daughter looking at a phone together" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%", display: "block" }} />
+              <DesignPhoto src="/design/trust-parent.webp" alt="Mother and daughter looking at a phone together" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%", display: "block" }} />
             </div>
             <div className="absolute overflow-hidden rounded-3xl border-8" style={{ right: 0, bottom: 0, width: "58%", height: "70%", background: "var(--blue)", borderColor: "var(--page)" }}>
-              <DesignPhoto src="/design/trust-student-v2.png" alt="Student following an online Physics lesson" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 62%", display: "block" }} />
+              <DesignPhoto src="/design/trust-student-v2.webp" alt="Student following an online Physics lesson" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 62%", display: "block" }} />
             </div>
             <svg width="80" height="60" viewBox="0 0 80 60" fill="none" stroke="var(--primary)" strokeWidth="1.6" strokeLinecap="round" className="pointer-events-none absolute left-[44%] top-[6%]" aria-hidden="true"><path d="M4 50C14 20 40 8 70 12" /><path d="m62 4 9 8-9 8" /></svg>
             <div className="pointer-events-none absolute flex flex-col gap-0.5 rounded-2xl bg-white px-5 py-4" style={{ left: "4%", bottom: "6%", boxShadow: "0 20px 40px -18px rgba(22,27,63,.4)", animation: "floatA 7s ease-in-out infinite" }}>
@@ -613,7 +615,7 @@ const LandingPage = () => {
           <div className="relative" style={{ height: "clamp(320px,34vw,420px)" }}>
             <div className="absolute rounded-[50%_50%_24px_24px] bg-lavender" style={{ inset: "8% 6% 0" }} />
             <div className="absolute overflow-hidden rounded-b-3xl" style={{ inset: "0 6% 0" }}>
-              <DesignPhoto src="/design/teach-panel.png" alt="Smiling teacher holding a folder" style={{ position: "absolute", left: 0, right: 0, bottom: 0, width: "100%", height: "100%", objectFit: "contain", objectPosition: "center bottom", filter: "drop-shadow(0 20px 28px rgba(22,27,63,.3))" }} />
+              <DesignPhoto src="/design/teach-panel.webp" alt="Smiling teacher holding a folder" style={{ position: "absolute", left: 0, right: 0, bottom: 0, width: "100%", height: "100%", objectFit: "contain", objectPosition: "center bottom", filter: "drop-shadow(0 20px 28px rgba(22,27,63,.3))" }} />
             </div>
             <div className="pointer-events-none absolute flex items-center gap-2.5 rounded-full bg-white py-2.5 pl-2.5 pr-4 text-ink" style={{ left: 0, bottom: "14%", boxShadow: "0 18px 36px -16px rgba(22,27,63,.5)", animation: reducedMotion ? "none" : "floatA 6s ease-in-out infinite" }}>
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-mist text-sm font-bold text-primary">✉</span>

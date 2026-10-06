@@ -3,28 +3,28 @@ The app references them as /design/<filename> and degrades gracefully
 (falls back to a CSS placeholder / just hides the photo) if a file is
 missing, so it's safe to add these gradually.
 
-logo-mark.png
-logo-full.png
+logo-mark.webp
+logo-full.webp
 
-auth-login.png
-auth-register.png
-auth-verify.png
-auth-forgot.png
-auth-reset.png
-auth-complete.png
+auth-login.webp
+auth-register.webp
+auth-verify.webp
+auth-forgot.webp
+auth-reset.webp
+auth-complete.webp
 
-hero-student.png
-hero-parent.png
-hero-teacher.png
+hero-student.webp
+hero-parent.webp
+hero-teacher.webp
 
-cat-maths.png
-cat-science.png
-cat-english.png
-cat-ict.png
-cat-music.png
-cat-languages.png
+cat-maths.webp
+cat-science.webp
+cat-english.webp
+cat-ict.webp
+cat-music.webp
+cat-languages.webp
 
-trust-parent.png
-trust-student-v2.png
+trust-parent.webp
+trust-student-v2.webp
 
-teach-panel.png
+teach-panel.webp

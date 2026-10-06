@@ -10,6 +10,7 @@ import { useLanguage } from "../context/languageContext.js";
 import { availabilityApi, interestsApi, listingsApi, profilesApi } from "../api/endpoints.js";
 import { toLocalWindows } from "../lib/time.js";
 import { DAYS_SHORT, classTypeLabel, curriculumLabel, firstName, formatClock, formatDate, formatPrice, mediumLabel } from "../lib/format.js";
+import { cloudinaryImage } from "../lib/images.js";
 
 const ROWS = [
   ["Morning", 6, 12],
@@ -136,7 +137,7 @@ const TeacherProfilePage = () => {
           <div className="flex flex-wrap items-start gap-8">
             <div className="flex-none overflow-hidden rounded-[20px]" style={{ width: 168, height: 168 }}>
               {p.photoUrl ? (
-                <img src={p.photoUrl} alt={p.name} className="h-full w-full object-cover" />
+                <img src={cloudinaryImage(p.photoUrl, { width: 900, height: 1050 })} alt={p.name} width="900" height="1050" decoding="async" className="h-full w-full object-cover" />
               ) : (
                 <div className="img-ph serif text-6xl font-bold">{(p.name || "?")[0]}</div>
               )}

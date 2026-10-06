@@ -3,7 +3,7 @@ import { useState } from "react";
 
 /**
  * The logo mark + EduLink wordmark. `onDark` swaps to the footer colourway.
- * Uses the real mark (design_handoff_edulink/images/logo-mark.png, dropped
+ * Uses the optimized mark (client/public/design/logo-mark.webp)
  * into client/public/design/) with a CSS "e" square as the fallback.
  */
 const Brand = ({ to = "/", onDark = false, mark = true, size = 25, suffix }) => {
@@ -11,7 +11,7 @@ const Brand = ({ to = "/", onDark = false, mark = true, size = 25, suffix }) => 
   return (
   <Link to={to} className="flex flex-none items-center gap-2.5" style={{ color: onDark ? "#fff" : "var(--ink)" }}>
     {mark && !logoFailed && (
-      <img src="/design/logo-mark.png" alt="" onError={() => setLogoFailed(true)} className="h-7 w-auto flex-none sm:h-8" />
+      <img src="/design/logo-mark.webp" alt="" width="43" height="32" decoding="async" onError={() => setLogoFailed(true)} className="h-7 w-auto flex-none sm:h-8" />
     )}
     {mark && logoFailed && (
       <span

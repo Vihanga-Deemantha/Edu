@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from "react";
 import { Link } from "react-router-dom";
 import Icon from "./Icon.jsx";
 import { initials } from "../../lib/format.js";
+import { cloudinaryImage } from "../../lib/images.js";
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 export const Avatar = ({ name, src, size = 40, solid = false, square = false, className = "" }) => (
@@ -10,7 +11,7 @@ export const Avatar = ({ name, src, size = 40, solid = false, square = false, cl
     style={{ width: size, height: size, fontSize: Math.round(size * 0.38), borderRadius: square ? 10 : "50%" }}
     aria-hidden="true"
   >
-    {src ? <img src={src} alt="" /> : initials(name)}
+    {src ? <img src={cloudinaryImage(src, { width: size * 2, height: size * 2 })} alt="" width={size} height={size} loading="lazy" decoding="async" /> : initials(name)}
   </span>
 );
 
